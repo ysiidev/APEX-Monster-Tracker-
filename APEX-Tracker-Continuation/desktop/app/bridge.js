@@ -60,7 +60,7 @@
   function change(fn) {
     var work = queue.then(function () {
       var next = copy(data); var result = fn(next);
-      return call('write', next).then(function () { data = next; notify(); return result; });
+      return (window.ApexCloud && window.ApexCloud.active() ? window.ApexCloud.save(next) : Promise.resolve()).then(function () { return call('write', next); }).then(function () { data = next; notify(); return result; });
     });
     queue = work.catch(function () {}); return work;
   }
@@ -89,11 +89,21 @@
   var ready = call('read').then(function(d) { data = d; return db; }).catch(function(e) {
     var b = document.getElementById('banner'); if(b){b.hidden=false; b.textContent='Could not open your local data: '+e.message+'. No data was reset. Close the app and check the data file.';} throw e;
   });
+  if (window.ApexCloud) window.ApexCloud.attach(function (remote, backup) {
+    var work = queue.then(function () { return ready; }).then(function () {
+      return backup ? call('backup') : true;
+    }).then(function (ok) {
+      if (backup && !ok) throw Error('Local backup was cancelled. Cloud connection cancelled.');
+      return call('write', remote);
+    }).then(function () { data = copy(remote); notify(); });
+    queue = work.catch(function () {}); return work;
+  });
   window.claude = {use:function (name) { if(name === 'db') return ready; if(name === 'downloads') return Promise.resolve({save:function(o){return call('csv',o);}}); return Promise.resolve(null); }};
   document.addEventListener('DOMContentLoaded', function () {
     var status = document.getElementById('backup-status');
     document.getElementById('backup-data').onclick = function(){ queue.then(function(){return call('backup');}).then(function(x){status.textContent=x?'Backup saved.':'Backup cancelled.';}).catch(function(e){status.textContent='Backup failed: '+e.message;}); };
     document.getElementById('restore-data').onclick = function(){
+      if (window.ApexCloud && window.ApexCloud.active()) { status.textContent='Disconnect cloud before restoring a local backup. Cloud data will not be overwritten.'; return; }
       var work = queue.then(function(){return call('restore');}).then(function(x){if(x){data=x;notify();status.textContent='Backup restored.';} else status.textContent='Restore cancelled.';});
       queue=work.catch(function(){}); work.catch(function(e){status.textContent='Restore failed: '+e.message;});
     };

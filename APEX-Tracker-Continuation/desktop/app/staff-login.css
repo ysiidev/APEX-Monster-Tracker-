@@ -1,0 +1,67 @@
+/* Default-deny visual gate, including while scripts are loading. Supabase remains
+   the security boundary; local files must still be protected by the OS account. */
+html:not(.staff-authenticated) .wrap { display: none !important; }
+#staff-login, #staff-login * { box-sizing: border-box; }
+#staff-login {
+  position: fixed; inset: 0; z-index: 1000; overflow-y: auto;
+  background: #090909; color: #f5f5f5; padding: 62px 24px 50px;
+  font-family: 'Arial Narrow', 'Barlow Condensed', sans-serif;
+}
+#staff-login[hidden] { display: none; }
+#staff-login .staff-card {
+  width: 100%; max-width: 575px; min-height: 618px; margin: 0 auto;
+  padding: 65px 60px 42px; background: #131313;
+  border: 1px solid #333; border-radius: 4px;
+}
+/* Override the tracker's global two-column form layout. */
+#staff-login #cloud-password-controls {
+  display: flex; flex-direction: column; align-items: stretch;
+  grid-template-columns: none; gap: 0; width: 100%; min-width: 0; margin: 0;
+}
+#staff-login #cloud-password-controls > * { min-width: 0; max-width: 100%; }
+#staff-login .staff-brand { display: block; border: 0; padding: 0; text-align: center; }
+#staff-login .staff-brand h1 {
+  margin: 0; color: #f5f5f5; font-family: 'Arial Narrow', Impact, sans-serif;
+  font-size: 20px; line-height: 1.4; letter-spacing: 4px; font-weight: 700;
+}
+#staff-login .staff-brand p {
+  margin: 3px 0 55px; font-size: 10px; letter-spacing: 5px; color: #888;
+}
+#staff-login h2 {
+  margin: 0 0 13px; text-align: center; color: #f5f5f5;
+  font-family: 'Arial Narrow', Impact, sans-serif; font-size: 22px; letter-spacing: 2px;
+}
+#staff-login label {
+  display: block; margin: 0 0 7px; color: #999; font-size: 10px; letter-spacing: 4px;
+}
+#staff-login input {
+  display: block; width: 100%; height: 56px; margin: 0 0 16px; padding: 14px 17px;
+  background: #202020; border: 1px solid #343434; border-radius: 2px;
+  color: #f5f5f5; font-family: inherit; font-size: 16px; letter-spacing: 1px;
+}
+#staff-login input::placeholder { color: #898989; }
+#staff-login input:focus { outline: 3px solid #50322d; outline-offset: 1px; border-color: #9b8078; }
+#staff-login #login-message {
+  min-height: 34px; margin: 10px 0 17px; font: 12px/1.5 system-ui, sans-serif; color: #e6b5a7;
+}
+#staff-login #cloud-login {
+  width: 100%; height: 60px; background: #f3f3f3; color: #090909;
+  border: 0; border-radius: 2px; cursor: pointer; font-family: 'Arial Narrow', Impact, sans-serif;
+  font-size: 16px; letter-spacing: 4px; font-weight: 700;
+}
+#staff-login #cloud-login:hover { background: #ddd; }
+#staff-login #cloud-login:disabled { opacity: .6; cursor: wait; }
+#staff-login #cloud-forgot {
+  display: block; margin: 24px auto 0; padding: 0; background: none; border: 0;
+  color: #999; font: 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer;
+}
+#staff-login .staff-setup { margin-top: 22px; font: 11px/1.6 system-ui, sans-serif; color: #888; }
+#staff-login .staff-setup summary { cursor: pointer; text-align: center; }
+#staff-login #cloud-register { background: #222; border: 1px solid #555; color: #eee; padding: 10px; cursor: pointer; }
+#cloud-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+#staff-login button:focus-visible, #staff-login summary:focus-visible { outline: 2px solid #eee; outline-offset: 4px; }
+@media (max-width: 520px) {
+  #staff-login { padding: 24px 16px; }
+  #staff-login .staff-card { padding: 48px 24px 36px; min-height: 580px; }
+  #staff-login .staff-brand h1 { font-size: 18px; letter-spacing: 3px; }
+}

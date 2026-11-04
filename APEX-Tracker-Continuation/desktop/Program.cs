@@ -16,7 +16,7 @@ class Tracker : Form {
   string dataPath; WebView2 browser;
   static readonly string[] collections = {"sales", "restocks", "refmoves", "money", "oct_batches"};
   Tracker() {
-    Text = "APEX Monster Sales Tracker"; Width = 1200; Height = 850; MinimumSize = new System.Drawing.Size(600, 500);
+    Text = "APEX Monster Tracker"; Width = 1200; Height = 850; MinimumSize = new System.Drawing.Size(600, 500);
     dataPath = Path.Combine(dataDir, "data.json");
     browser = new WebView2 { Dock = DockStyle.Fill }; Controls.Add(browser);
     Shown += async (sender, args) => {

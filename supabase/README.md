@@ -1,5 +1,8 @@
 # Supabase backend for the APEX Monster Sales Tracker
 
+
+> **Live connection added:** The updated app supports owner email sign-in and automatic cloud saves. See [live sync setup and limitations](LIVE-SYNC.md). The backup scripts and normalized tables described below remain separate from live app state.
+
 Cloud copy of the tracker's data, plus an archive bucket. This is a **backup and reporting
 layer**, not a live sync — the Windows app still writes only to its local `data.json`.
 

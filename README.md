@@ -1,5 +1,8 @@
 # APEX Monster Sales Tracker
 
+
+> **Live connection added:** The updated app supports owner email sign-in and automatic cloud saves. See [live sync setup and limitations](supabase/LIVE-SYNC.md). The backup scripts and normalized tables described below remain separate from live app state.
+
 Sales, stock and money tracker for a Monster Energy resale run out of APEX Sports Center
 (Philippines). Started life as a single self-contained Claude artifact, was wrapped into an
 offline Windows desktop app, and now has a Supabase backend for backup and reporting.

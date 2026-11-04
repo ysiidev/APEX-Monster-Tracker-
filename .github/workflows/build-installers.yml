@@ -153,7 +153,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.v.outputs.tag }}
-          name: APEX Monster Sales Tracker ${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: APEX Monster Tracker ${{ steps.v.outputs.version }}
           draft: false
           fail_on_unmatched_files: true
           files: |
@@ -163,6 +164,12 @@ jobs:
             APEX-Tracker-Continuation/desktop/output/SHA256SUMS.txt
           body: |
             **Windows desktop build ${{ steps.v.outputs.version }}**
+
+            Updated APEX Monster Tracker staff login and owner-only Supabase cloud saves.
+            Includes the corrected single-column login layout and admin username support.
+            Live data uses tracker_live_state; legacy reporting tables remain separate.
+            Source commit: ${{ github.sha }}
+            Back up local data before signing in: cloud sign-in loads the cloud copy, not a merge.
 
             > This build has not been opened on a Windows machine by its author.
             > Test it before relying on it, and keep your own backup of `data.json`.
