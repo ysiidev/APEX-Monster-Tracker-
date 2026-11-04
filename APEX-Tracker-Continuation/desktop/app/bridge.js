@@ -1,13 +1,57 @@
 (function () {
   'use strict';
   var pending = new Map(), nextId = 1, data, listeners = [], queue = Promise.resolve();
+
+  /* Host detection. The Windows app injects window.chrome.webview; that path is used
+     whenever it exists and is unchanged. When this page is served as a plain web page
+     (the preview server, or a manual browser check) there is no host, so a
+     localStorage-backed stand-in takes over and the app stays fully usable. */
+  var host = (window.chrome && window.chrome.webview) || makeWebHost();
+
+  function makeWebHost() {
+    var KEY = 'apex-monster-preview-data', BAK = 'apex-monster-preview-backup', handlers = [];
+    function clone(o) { return JSON.parse(JSON.stringify(o)); }
+    function load() {
+      try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+      var seed = window.__APEX_SEED__;
+      if (!seed) throw new Error('No data source. Open the Windows app, or serve this page from the preview server.');
+      try { localStorage.setItem(KEY, JSON.stringify(seed)); } catch (e) {}
+      return clone(seed);
+    }
+    function csv(payload) {
+      try {
+        var blob = new Blob([payload.data], {type: 'text/csv'}), url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = payload.filename || 'export.csv';
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        return true;
+      } catch (e) { return false; }
+    }
+    return {
+      addEventListener: function (type, fn) { if (type === 'message') handlers.push(fn); },
+      postMessage: function (req) {
+        var value = null;
+        try {
+          if (req.op === 'read') value = load();
+          else if (req.op === 'write') { localStorage.setItem(KEY, JSON.stringify(req.value)); value = true; }
+          else if (req.op === 'backup') { localStorage.setItem(BAK, localStorage.getItem(KEY) || JSON.stringify(load())); value = true; }
+          else if (req.op === 'restore') { var raw = localStorage.getItem(BAK); if (raw) { localStorage.setItem(KEY, raw); value = JSON.parse(raw); } }
+          else if (req.op === 'csv') value = csv(req.value);
+          else throw new Error('Unknown operation: ' + req.op);
+          setTimeout(function () { handlers.forEach(function (fn) { fn({data: {id: req.id, value: clone(value)}}); }); }, 0);
+        } catch (e) {
+          setTimeout(function () { handlers.forEach(function (fn) { fn({data: {id: req.id, error: e.message}}); }); }, 0);
+        }
+      }
+    };
+  }
+
   function call(op, value) {
     return new Promise(function (resolve, reject) {
       var id = nextId++; pending.set(id, {resolve:resolve, reject:reject});
-      window.chrome.webview.postMessage({id:id, op:op, value:value});
+      host.postMessage({id:id, op:op, value:value});
     });
   }
-  window.chrome.webview.addEventListener('message', function (event) {
+  host.addEventListener('message', function (event) {
     var r = event.data, p = pending.get(r.id); if (!p) return;
     pending.delete(r.id); if (r.error) p.reject(new Error(r.error)); else p.resolve(r.value);
   });

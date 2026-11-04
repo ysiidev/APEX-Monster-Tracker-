@@ -33,6 +33,22 @@ The offline app is a separate copy, not a live connection to the original publis
 - Local data is not encrypted and is per Windows user. The `.previous` file is only the previous write, not a substitute for independent backups. Backups can contain names and financial information.
 - Installers and executable are unsigned. Windows SmartScreen may display a warning.
 
+## Browser preview (no Windows needed)
+
+`desktop/preview/server.js` serves `desktop/app/` as an ordinary web page so the UI can be inspected and clicked through in any browser, without Windows, WebView2, .NET or Mono. It is a development harness: the installers package individual files from `app/`, so `preview/` is never shipped.
+
+```sh
+cd desktop
+node preview/server.js          # http://localhost:8080/ opens on the Tracker view
+node preview/server.js 9090     # custom port
+```
+
+- The page's CSP sets `connect-src 'none'`, so the server injects one inline script setting `window.__APEX_SEED__` from `app/snapshot.json` before `bridge.js` loads. `app/index.html` on disk is not modified.
+- `bridge.js` now detects its host: when `window.chrome && window.chrome.webview` exists (the Windows app) nothing changes; when it does not, a `localStorage`-backed stand-in handles `read`, `write`, `backup`, `restore` and `csv` so the UI is fully usable. Preview data lives under `apex-monster-preview-data` / `apex-monster-preview-backup`; open `/?reset=1` to clear it and reload the seed.
+- `backup`, `restore` and CSV export work in the preview, but they touch browser storage and the browser's download folder — not `%LOCALAPPDATA%\ApexMonsterTracker`.
+- `node preview/check.js` starts its own server on port 8099 and asserts the page loads without errors and that the Daily log matches the snapshot.
+- **The preview does not validate the Windows build.** It exercises the same HTML/JS, so a rendering or logic bug will show up here, but WebView2 startup, native dialogs, file permissions, installers and data persistence on Windows still require testing on Windows.
+
 ## Data and business caveats
 
 The snapshot now holds ten November sales — nine Cash and one GCash, ₱950 total — after the amendment described below, plus estimated October sales. It does not include starting account balances; verify these and the inventory before using the accounting figures. October case quantities in the earlier notes conflict with the JSON: each batch lists 10 cases, not 20. October's ₱1,365 figure subtracts the full cost of purchased stock and shipping, and is not necessarily profit on cans sold. See the original continuation notes for all collection fields and rules.
