@@ -1,0 +1,1507 @@
+<title>Monster Sales Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one ledger page. Summary strip first, then a two-column working area
+   (record a sale | stock on hand), then flavor mix and the sales history. */
+:root {
+  --bg: #090b08;
+  --surface: #121610;
+  --ink: #eef3e8;
+  --muted: #8e9a85;
+  --line: #27311f;
+  --accent: #8ed100;
+  --accent-ink: #090b08;
+  --warn: #ffb020;
+  --bad: #ff5d4d;
+  --bar: #8ed100;
+  --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, .num { font-family: var(--font-display); letter-spacing: 0.01em; }
+h1 { margin: 0; font-size: 40px; line-height: 1; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; text-wrap: balance; }
+h2 { margin: 0 0 12px; font-size: 24px; line-height: 1.1; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; text-wrap: balance; color: var(--accent); }
+.label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: flex-end; padding-bottom: 16px; border-bottom: 4px solid var(--accent); }
+.sub { color: var(--accent); margin-top: 8px; font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase; font-size: 12px; }
+.tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); padding: 3px; border-radius: 2px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; padding: 8px 12px; border-radius: 2px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+.banner { border: 1px solid var(--warn); color: var(--warn); padding: 10px 14px; border-radius: 2px; background: var(--surface); }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border: 1px solid var(--line); background: var(--surface); border-radius: 2px; }
+.stat { padding: 14px 16px; min-width: 0; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat .num { font-size: 48px; line-height: 1; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; color: var(--accent); }
+.stat .note { color: var(--muted); font-size: 13px; }
+.stat.owed .num { color: var(--warn); }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } .stat { border-right: 0; border-bottom: 1px solid var(--line); } .stat:last-child { border-bottom: 0; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 2px; padding: 18px; min-width: 0; }
+
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.f.full { grid-column: 1 / -1; }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 9px 10px; min-width: 0; width: 100%; }
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg label { cursor: pointer; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg span { display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 2px; background: var(--bg); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { font: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; font-size: 13px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); padding: 10px 16px; border-radius: 2px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--muted); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn.danger { background: transparent; color: var(--bad); border-color: var(--bad); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.total-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; grid-column: 1 / -1; padding-top: 4px; }
+.total-line .num { font-size: 38px; color: var(--accent); }
+.msg { min-height: 20px; font-size: 13px; color: var(--muted); grid-column: 1 / -1; }
+.msg.err { color: var(--bad); }
+
+.stock-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.stock-row .adj { grid-column: 2 / -1; display: flex; gap: 6px; align-items: center; }
+.stock-row .adj input { width: 84px; padding: 6px 8px; }
+details.rhist { margin-top: 10px; }
+details.rhist summary { cursor: pointer; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rh:last-child { border-bottom: 0; }
+.rh .main { min-width: 0; flex: 1 1 180px; }
+.rh .what { font-family: var(--font-display); font-size: 19px; font-weight: 600; letter-spacing: 0.03em; overflow-wrap: anywhere; }
+.rh .meta { color: var(--muted); font-size: 13px; }
+.rh .right { display: flex; gap: 6px; }
+.stock-row:last-of-type { border-bottom: 0; }
+.stock-row > div:first-child { font-family: var(--font-display); font-size: 19px; font-weight: 600; letter-spacing: 0.03em; }
+.stock-row .qty { font-family: var(--font-display); font-size: 30px; line-height: 1; font-weight: 700; color: var(--accent); }
+.stock-row.total { border-top: 2px solid var(--line); border-bottom: 0; margin-top: 4px; }
+.stock-row.total .qty { color: var(--ink); font-size: 30px; }
+.stock-row .qty.low { color: var(--warn); }
+.stock-row .qty.out { color: var(--bad); }
+.tag { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 6px; }
+.restock { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr) minmax(0, 0.8fr); gap: 8px; align-items: end; }
+.restock .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.restock .row2 .f { flex: 1 1 200px; }
+@media (max-width: 520px) { .restock { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.bar-row { display: grid; grid-template-columns: minmax(90px, 160px) minmax(0, 1fr) 56px; gap: 10px; align-items: center; padding: 5px 0; }
+.bar-row .name { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: 0.03em; overflow-wrap: anywhere; }
+.track { height: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+.fill { height: 100%; background: linear-gradient(90deg, #5a8a00, var(--bar)); border-radius: 0; }
+.bar-row .v { text-align: right; font-weight: 600; }
+
+.empty { color: var(--muted); padding: 14px 0; }
+.sale { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.sale:last-child { border-bottom: 0; }
+.sale .main { min-width: 0; flex: 1 1 220px; }
+.sale .what { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: 0.03em; overflow-wrap: anywhere; }
+.sale .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.sale .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sale .amt { font-family: var(--font-display); font-size: 28px; line-height: 1; font-weight: 700; min-width: 80px; text-align: right; color: var(--accent); }
+.sale.editing { display: block; }
+.edit-form { margin: 0; }
+.pill { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 2px; border: 1px solid var(--warn); color: var(--warn); }
+.head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+.head-row h2 { margin: 0; }
+
+details.settings summary { cursor: pointer; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent); text-transform: uppercase; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 99px; padding: 3px 4px 3px 12px; background: var(--bg); }
+.chip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; }
+.add-flavor { display: flex; gap: 8px; margin-top: 8px; }
+.money { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.mtile { border: 1px solid var(--line); background: var(--bg); padding: 12px 14px; border-radius: 2px; min-width: 0; }
+.mtile .num { font-size: 34px; line-height: 1.05; font-weight: 700; color: var(--accent); overflow-wrap: anywhere; margin-top: 2px; }
+.mtile.total .num { color: var(--ink); }
+.mtile .num.neg { color: var(--bad); }
+.fine { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+.sechead { grid-column: 1 / -1; color: var(--accent); }
+.movef { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr) auto; gap: 8px; align-items: end; }
+@media (max-width: 520px) { .movef { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .movef .btn { grid-column: 1 / -1; } }
+.vtabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+.vtabs button { border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: transparent; color: var(--muted); font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 14px; cursor: pointer; }
+.vtabs button[aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.view { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.tscroll { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tbl th { text-align: left; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
+.tbl th.r, .tbl td.r { text-align: right; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl tr.totalrow td { border-top: 2px solid var(--line); font-weight: 700; }
+.tbl tr.dim td { color: var(--muted); }
+.tbl .barcell { width: 28%; min-width: 110px; }
+.tbl input { width: 90px; padding: 6px 8px; }
+.tbl .fsub { white-space: normal; }
+.unit { font-size: 15px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.mtile .note { color: var(--muted); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.math-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.math-row.minus .v { color: var(--warn); }
+.math-row.net { border-top: 2px solid var(--line); border-bottom: 0; font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--accent); }
+.inline-edit { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 4px 0; white-space: normal; }
+.pc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.monthnav { display: flex; align-items: center; gap: 10px; }
+.mm-month { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; min-width: 150px; text-align: center; }
+.bar-row.wide { grid-template-columns: minmax(90px, 160px) minmax(0, 1fr) 110px; }
+.fill.exp { background: linear-gradient(90deg, #8a5a00, var(--warn)); }
+.sale .amt.neg { color: var(--warn); }
+.sale .amt.flat { color: var(--ink); }
+.dl-day { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.dl-day:last-child { border-bottom: 0; }
+.dl-date { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); }
+.dl-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dl-list li { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; }
+.dl-list li::before { content: "-"; color: var(--muted); }
+.dl-buyer { font-weight: 600; overflow-wrap: anywhere; }
+.dl-meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+.home { gap: 22px; padding-block: 6px 28px; background: repeating-linear-gradient(135deg, rgba(255,255,255,0.016) 0 2px, transparent 2px 22px); }
+.home-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.home-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo { width: 48px; height: 48px; display: grid; place-items: center; border: 2px solid var(--accent); color: var(--accent); font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: 0.08em; flex: none; }
+.home-title { font-family: var(--font-display); font-size: 28px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; line-height: 1.05; }
+.home-sub { font-size: 10px; letter-spacing: 0.4em; color: var(--muted); text-transform: uppercase; margin-top: 5px; }
+.home-clock { text-align: center; }
+.home-date { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.3em; font-weight: 600; text-transform: uppercase; }
+.home-time { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: 0.06em; }
+.home-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.hstat { background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; min-width: 0; }
+.hnum { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; margin-right: 10px; overflow-wrap: anywhere; }
+.hbar { height: 5px; background: var(--line); margin-top: 10px; }
+.hfill { height: 100%; width: 0; background: var(--accent); }
+.hnote { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.select-module { align-self: center; border: 1px solid var(--accent); color: var(--accent); padding: 10px 34px; font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: 0.4em; text-transform: uppercase; text-align: center; }
+.menu { display: flex; flex-direction: column; width: 100%; max-width: 780px; margin: 0 auto; border-top: 1px solid var(--line); }
+.mod { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 18px 16px; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); text-align: left; font: inherit; cursor: pointer; transition: background-color 0.18s ease, padding-left 0.18s ease; }
+.mod::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); transform: scaleY(0); transition: transform 0.18s ease; }
+.mod-icon { color: var(--accent); display: grid; place-items: center; transition: transform 0.2s ease, filter 0.2s ease; }
+.mod-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mod-title { font-family: var(--font-display); font-size: 27px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.1; }
+.mod-desc { color: var(--muted); font-size: 14px; }
+.mod-meta { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; min-height: 1em; }
+.mod-arrow { color: var(--muted); font-size: 24px; transition: transform 0.2s ease, color 0.2s ease; }
+.mod:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mod:active { background: rgba(142, 209, 0, 0.14); }
+.btn, .tabs button, .vtabs button, .seg span { transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease; }
+.btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+details summary { transition: color 0.15s ease; }
+@media (hover: hover) {
+  .mod:hover { background: rgba(142, 209, 0, 0.08); padding-left: 26px; }
+  .mod:hover::before { transform: scaleY(1); }
+  .mod:hover .mod-icon { transform: scale(1.14); filter: drop-shadow(0 0 8px rgba(142, 209, 0, 0.65)); }
+  .mod:hover .mod-arrow { transform: translateX(8px); color: var(--accent); }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 0 0 1px var(--accent), 0 6px 18px rgba(142, 209, 0, 0.28); filter: brightness(1.1); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(142, 209, 0, 0.09); filter: none; }
+  .btn.danger:hover:not(:disabled) { background: var(--bad); color: var(--accent-ink); box-shadow: 0 6px 18px rgba(255, 93, 77, 0.28); filter: none; }
+  .tabs button:hover:not([aria-pressed="true"]) { color: var(--ink); background: rgba(142, 209, 0, 0.14); }
+  .vtabs button:hover:not([aria-pressed="true"]) { color: var(--ink); background: rgba(142, 209, 0, 0.1); }
+  .seg label:hover span { border-color: var(--accent); color: var(--accent); }
+  .seg input:checked + span:hover { color: var(--accent-ink); }
+  details summary:hover { color: var(--ink); }
+}
+@media (prefers-reduced-motion: reduce) { .mod, .mod::before, .mod-icon, .mod-arrow, .btn, .tabs button, .vtabs button, .seg span { transition: none; } .btn:hover, .mod:hover .mod-icon, .mod:hover .mod-arrow { transform: none; } }
+.math-row.sub { font-weight: 700; }
+.h2b { margin-top: 26px; }
+.fsub { font-family: var(--font-body); font-size: 12px; font-weight: 400; letter-spacing: 0.02em; color: var(--muted); margin-top: 2px; }
+.qtywrap { text-align: right; }
+.qlabel { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.stock-row.editing { grid-template-columns: minmax(0, 1fr); }
+.stock-row.editing .adj { grid-column: 1 / -1; flex-wrap: wrap; align-items: flex-end; }
+.adjf { display: flex; flex-direction: column; gap: 4px; }
+.stock-row.total.refrow .qty { color: var(--accent); }
+.stock-row.total.second { border-top: 0; margin-top: 0; }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: width 0.3s ease; } }
+</style>
+
+<div class="wrap">
+  <div class="view home" id="view-home">
+    <div class="home-top">
+      <div class="home-brand">
+        <div class="logo" aria-hidden="true">MS</div>
+        <div>
+          <div class="home-title">Monster Sales</div>
+          <div class="home-sub">Sales and stock system</div>
+        </div>
+      </div>
+      <div class="home-clock">
+        <div class="home-date" id="home-date">&nbsp;</div>
+        <div class="home-time tnum" id="home-time">&nbsp;</div>
+      </div>
+    </div>
+    <div class="home-stats">
+      <div class="hstat"><div><span class="hnum tnum" id="h-today">0</span><span class="label">cans sold today</span></div><div class="hbar"><div class="hfill" id="h-today-bar"></div></div></div>
+      <div class="hstat"><div><span class="hnum tnum" id="h-ref">0</span><span class="label" id="h-ref-label">in the ref</span></div><div class="hbar"><div class="hfill" id="h-ref-bar"></div></div></div>
+      <div class="hstat"><div><span class="hnum tnum" id="h-month">₱0</span><span class="label">sales this month</span></div><div class="hnote" id="h-month-note">&nbsp;</div></div>
+    </div>
+    <div class="select-module">Select module</div>
+    <nav class="menu" id="menu" aria-label="Modules">
+      <button type="button" class="mod" data-view="tracker">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
+        <span class="mod-text"><span class="mod-title">Tracker</span><span class="mod-desc">Record a sale and see how much you sold.</span><span class="mod-meta" id="hm-tracker"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="mod" data-view="statistics">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M10 20V4M16 20v-6M22 20H2"/></svg></span>
+        <span class="mod-text"><span class="mod-title">Statistics</span><span class="mod-desc">Cans sold daily, weekly and monthly, and the flavor mix.</span><span class="mod-meta" id="hm-statistics"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="mod" data-view="accounting">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="1.5"/><path d="M3 10h18M16.5 14.5h1.5"/></svg></span>
+        <span class="mod-text"><span class="mod-title">Accounting</span><span class="mod-desc">Cash, GCash and MariBank balances, plus the October profit.</span><span class="mod-meta" id="hm-accounting"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="mod" data-view="money">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V5M7 5L4 8M7 5l3 3M17 4v15M17 19l-3-3M17 19l3-3"/></svg></span>
+        <span class="mod-text"><span class="mod-title">Money Manager</span><span class="mod-desc">Track income, expenses and transfers for Monster, salary and more.</span><span class="mod-meta" id="hm-money"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="mod" data-view="history">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg></span>
+        <span class="mod-text"><span class="mod-title">History</span><span class="mod-desc">Every sale you recorded, with edit, delete and export.</span><span class="mod-meta" id="hm-history"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+      <button type="button" class="mod" data-view="stock">
+        <span class="mod-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/></svg></span>
+        <span class="mod-text"><span class="mod-title">Stock &amp; Inventory</span><span class="mod-desc">Cans in the ref and on hand, restocks and moving stock.</span><span class="mod-meta" id="hm-stock"></span></span>
+        <span class="mod-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="view" id="chrome" hidden>
+  <header>
+    <div>
+      <h1>Monster Sales</h1>
+      <div class="sub" id="today-label">Gym cooler ledger</div>
+    </div>
+    <div class="tabs" role="group" aria-label="Date range" id="range-tabs">
+      <button type="button" data-range="today" aria-pressed="true">Today</button>
+      <button type="button" data-range="week" aria-pressed="false">7 days</button>
+      <button type="button" data-range="month" aria-pressed="false">This month</button>
+      <button type="button" data-range="all" aria-pressed="false">All time</button>
+    </div>
+  </header>
+    <nav class="vtabs" id="view-tabs" aria-label="Sections">
+      <button type="button" data-view="home" aria-pressed="false">Home</button>
+      <button type="button" data-view="tracker" aria-pressed="false">Tracker</button>
+      <button type="button" data-view="statistics" aria-pressed="false">Statistics</button>
+      <button type="button" data-view="accounting" aria-pressed="false">Accounting</button>
+      <button type="button" data-view="money" aria-pressed="false">Money Manager</button>
+      <button type="button" data-view="history" aria-pressed="false">History</button>
+      <button type="button" data-view="stock" aria-pressed="false">Stock &amp; Inventory</button>
+    </nav>
+  </div>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="view" id="view-tracker" hidden>
+  <section class="stats" aria-label="Summary">
+    <div class="stat"><div class="label">Sales</div><div class="num tnum" id="s-sales">₱0</div><div class="note" id="s-sales-note">&nbsp;</div></div>
+    <div class="stat"><div class="label">Cans sold</div><div class="num tnum" id="s-cans">0</div><div class="note" id="s-cans-note">&nbsp;</div></div>
+    <div class="stat"><div class="label">Cans in ref</div><div class="num tnum" id="s-stock">–</div><div class="note" id="s-stock-note">&nbsp;</div></div>
+    <div class="stat"><div class="label">Expenses</div><div class="num tnum" id="s-exp">₱0</div><div class="note" id="s-exp-note">&nbsp;</div></div>
+    <div class="stat"><div class="label">Profit</div><div class="num tnum" id="s-profit">₱0</div><div class="note" id="s-profit-note">&nbsp;</div></div>
+    <div class="stat owed"><div class="label">Debt not yet paid</div><div class="num tnum" id="s-owed">₱0</div><div class="note" id="s-owed-note">All time</div></div>
+  </section>
+    <section class="panel" aria-labelledby="h-sale">
+      <h2 id="h-sale">Record a sale</h2>
+      <form id="sale-form" autocomplete="off">
+        <div class="f full"><label class="label" for="f-flavor">Flavor</label><select id="f-flavor"></select></div>
+        <div class="f"><label class="label" for="f-qty">Cans</label><input id="f-qty" type="number" inputmode="numeric" min="1" step="1" value="1"></div>
+        <div class="f"><label class="label" for="f-price">Price per can (₱)</label><input id="f-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="e.g. 100"></div>
+        <div class="f"><label class="label" for="f-buyer">Buyer (optional)</label><input id="f-buyer" type="text" maxlength="60" placeholder="Name or nickname"></div>
+        <div class="f"><label class="label" for="f-date">Date and time</label><input id="f-date" type="datetime-local"></div>
+        <div class="f full"><span class="label" id="pay-label">Payment</span>
+          <div class="seg" role="radiogroup" aria-labelledby="pay-label">
+            <label><input type="radio" name="method" value="Cash" checked><span>Cash</span></label>
+            <label><input type="radio" name="method" value="GCash"><span>GCash</span></label>
+            <label><input type="radio" name="method" value="MariBank"><span>MariBank</span></label>
+            <label><input type="radio" name="method" value="Debt"><span>Debt</span></label>
+          </div>
+        </div>
+        <div class="total-line"><span class="label">Total</span><span class="num tnum" id="f-total">₱0</span></div>
+        <div class="msg" id="sale-msg" role="status"></div>
+        <div class="f full"><button class="btn" type="submit" id="sale-btn">Save sale</button></div>
+      </form>
+    </section>
+  <section class="panel">
+    <details class="settings">
+      <summary>Prices and flavors</summary>
+      <div class="settings-grid">
+        <div class="f"><label class="label" for="p-price">Default selling price (₱)</label><input id="p-price" type="number" inputmode="decimal" min="0" step="0.5" placeholder="e.g. 100"></div>
+        <div class="f"><label class="label" for="p-cost">Default cost per can (₱)</label><input id="p-cost" type="number" inputmode="decimal" min="0" step="0.5" placeholder="e.g. 75"></div>
+        <div class="f full"><button class="btn ghost small" type="button" id="p-save" style="align-self:flex-start">Save defaults</button><div class="msg" id="p-msg" role="status"></div></div>
+        <div class="f full"><span class="label">Money you started with (₱)</span></div>
+        <div class="f"><label class="label" for="o-cash">Cash</label><input id="o-cash" type="number" inputmode="decimal" step="0.5" placeholder="0"></div>
+        <div class="f"><label class="label" for="o-gcash">GCash</label><input id="o-gcash" type="number" inputmode="decimal" step="0.5" placeholder="0"></div>
+        <div class="f"><label class="label" for="o-mari">MariBank</label><input id="o-mari" type="number" inputmode="decimal" step="0.5" placeholder="0"></div>
+        <div class="f full"><button class="btn ghost small" type="button" id="o-save" style="align-self:flex-start">Save starting amounts</button><div class="msg" id="o-msg" role="status"></div></div>
+        <div class="f full"><span class="label">Flavors in your cooler</span><div class="chips" id="flavor-chips"></div>
+          <div class="add-flavor"><input id="n-flavor" type="text" maxlength="40" placeholder="Add a flavor" aria-label="New flavor name"><button class="btn ghost small" type="button" id="n-add">Add</button></div>
+        </div>
+      </div>
+    </details>
+  </section>
+    <section class="panel" aria-labelledby="h-dlog">
+      <h2 id="h-dlog">Daily log</h2>
+      <div id="dlog"></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-statistics" hidden>
+    <section class="panel" aria-labelledby="nov-title">
+      <h2 id="nov-title">Sales summary</h2>
+      <div class="money" id="nov-cards"></div>
+    </section>
+    <section class="panel" aria-labelledby="nov-h">
+      <div class="head-row">
+        <h2 id="nov-h">Cans sold</h2>
+        <div class="tabs" role="group" aria-label="Breakdown" id="nov-tabs">
+          <button type="button" data-mode="daily" aria-pressed="true">Daily</button>
+          <button type="button" data-mode="weekly" aria-pressed="false">Weekly</button>
+          <button type="button" data-mode="monthly" aria-pressed="false">Monthly</button>
+        </div>
+      </div>
+      <div id="nov-table"></div>
+    </section>
+  <section class="panel" aria-labelledby="h-mix">
+    <h2 id="h-mix">Flavor mix</h2>
+    <div id="mix"></div>
+  </section>
+  </div>
+
+  <div class="view" id="view-accounting" hidden>
+  <section class="panel" aria-labelledby="h-money">
+    <h2 id="h-money">Money on hand</h2>
+    <div class="money" id="money"></div>
+    <p class="fine" id="money-note"></p>
+  </section>
+    <section class="panel" aria-labelledby="oct-h">
+      <h2 id="oct-h">October 2026 profit</h2>
+      <div class="money" id="oct-cards"></div>
+      <p class="fine" id="oct-note"></p>
+    </section>
+    <section class="panel" aria-labelledby="oct-c">
+      <h2 id="oct-c">Cash on hand, Oct 16 to Oct 31</h2>
+      <div id="oct-cash"></div>
+      <form class="inline-edit" id="oct-split-form" autocomplete="off" style="margin-top:14px">
+        <div class="adjf"><label class="label" for="oct-split">Cans sold Oct 1&ndash;15</label><input id="oct-split" type="number" inputmode="numeric" min="0" step="1" placeholder="e.g. 60"></div>
+        <button class="btn ghost small" type="submit">Show cash split</button>
+      </form>
+      <div class="msg" id="oct-msg2" role="status"></div>
+    </section>
+    <section class="panel" aria-labelledby="oct-m">
+      <h2 id="oct-m">How the profit adds up</h2>
+      <div id="oct-math"></div>
+    </section>
+    <section class="panel" aria-labelledby="oct-b">
+      <h2 id="oct-b">Purchases</h2>
+      <div id="oct-batches"></div>
+    </section>
+    <section class="panel" aria-labelledby="oct-f">
+      <h2 id="oct-f">Flavors</h2>
+      <div id="oct-flavors"></div>
+      <div class="msg" id="oct-msg" role="status"></div>
+    </section>
+    <section class="panel">
+      <details class="settings">
+        <summary>Price and cost per can</summary>
+        <div class="pc-grid">
+          <div class="f"><label class="label" for="oct-price">Selling price (₱)</label><input id="oct-price" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="f"><label class="label" for="oct-cost">Cost per can (₱)</label><input id="oct-cost" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="f full"><button class="btn ghost small" type="button" id="oct-pc-save" style="align-self:flex-start">Save</button></div>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <div class="view" id="view-money" hidden>
+    <section class="panel" aria-labelledby="mm-h">
+      <div class="head-row">
+        <h2 id="mm-h">Money manager</h2>
+        <div class="monthnav">
+          <button class="btn ghost small" type="button" id="mm-prev" aria-label="Previous month">&larr;</button>
+          <span class="mm-month" id="mm-month">&nbsp;</span>
+          <button class="btn ghost small" type="button" id="mm-next" aria-label="Next month">&rarr;</button>
+        </div>
+      </div>
+      <div class="money" id="mm-cards"></div>
+    </section>
+    <section class="panel" aria-labelledby="mm-b">
+      <h2 id="mm-b">Money by account</h2>
+      <div class="money" id="mm-bal"></div>
+      <p class="fine">Starting amounts, plus Monster sales you were paid for, minus Monster restocks, plus or minus everything you add here.</p>
+    </section>
+    <section class="panel" aria-labelledby="mm-a">
+      <h2 id="mm-a">Add an entry</h2>
+      <form id="mm-form" autocomplete="off">
+        <div class="f full"><span class="label" id="mm-type-l">Type</span>
+          <div class="seg" role="radiogroup" aria-labelledby="mm-type-l">
+            <label><input type="radio" name="mmtype" value="income"><span>Income</span></label>
+            <label><input type="radio" name="mmtype" value="expense" checked><span>Expense</span></label>
+            <label><input type="radio" name="mmtype" value="transfer"><span>Transfer</span></label>
+          </div>
+        </div>
+        <div class="f"><label class="label" for="mm-amount">Amount (₱)</label><input id="mm-amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"></div>
+        <div class="f" id="mm-cat-wrap"><label class="label" for="mm-cat">Category</label><input id="mm-cat" type="text" maxlength="40" list="mm-cats" placeholder="e.g. Salary"><datalist id="mm-cats"></datalist></div>
+        <div class="f"><label class="label" for="mm-acc" id="mm-acc-l">Paid from</label><select id="mm-acc"><option value="Cash">Cash</option><option value="GCash">GCash</option><option value="MariBank">MariBank</option></select></div>
+        <div class="f" id="mm-to-wrap" hidden><label class="label" for="mm-to">To account</label><select id="mm-to"><option value="Cash">Cash</option><option value="GCash">GCash</option><option value="MariBank" selected>MariBank</option></select></div>
+        <div class="f"><label class="label" for="mm-when">Date and time</label><input id="mm-when" type="datetime-local"></div>
+        <div class="f full"><label class="label" for="mm-note">Note (optional)</label><input id="mm-note" type="text" maxlength="80" placeholder="What was it for?"></div>
+        <div class="msg" id="mm-msg" role="status"></div>
+        <div class="f full" style="flex-direction:row;gap:8px"><button class="btn" type="submit" id="mm-save">Save entry</button><button class="btn ghost" type="button" id="mm-cancel" hidden>Cancel edit</button></div>
+      </form>
+    </section>
+    <section class="panel" aria-labelledby="mm-c">
+      <h2 id="mm-c">By category</h2>
+      <div id="mm-cats-out"></div>
+    </section>
+    <section class="panel" aria-labelledby="mm-l">
+      <h2 id="mm-l">Entries</h2>
+      <div id="mm-list"></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-history" hidden>
+  <section class="panel" aria-labelledby="h-hist">
+    <div class="head-row">
+      <h2 id="h-hist">Sales history</h2>
+      <button class="btn ghost small" type="button" id="export-btn" hidden>Export CSV</button>
+    </div>
+    <div id="history"></div>
+  </section>
+  </div>
+
+  <div class="view" id="view-stock" hidden>
+    <section class="panel" aria-labelledby="h-stock">
+      <h2 id="h-stock">Stock</h2>
+      <div id="stock-list"></div>
+      <h2 class="h2b" id="h-hand">Stock on hand</h2>
+      <div id="hand-list"></div>
+      <div class="msg" id="stock-msg" role="status"></div>
+      <form class="movef" id="move-form" autocomplete="off">
+        <span class="label sechead">Move cans from stock on hand to the ref</span>
+        <div class="f"><label class="label" for="m-flavor">Flavor</label><select id="m-flavor"></select></div>
+        <div class="f"><label class="label" for="m-qty">Cans</label><input id="m-qty" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g. 6"></div>
+        <button class="btn ghost" type="submit" id="move-btn">Move to ref</button>
+      </form>
+      <form class="restock" id="restock-form" autocomplete="off">
+        <span class="label sechead">Restock a new purchase</span>
+        <div class="f"><label class="label" for="r-flavor">Flavor</label><select id="r-flavor"></select></div>
+        <div class="f"><label class="label" for="r-qty">Cans</label><input id="r-qty" type="number" inputmode="numeric" min="1" step="1" placeholder="24"></div>
+        <div class="f"><label class="label" for="r-cost">Cost / can</label><input id="r-cost" type="number" inputmode="decimal" min="0" step="0.5" placeholder="₱"></div>
+        <div class="row2">
+          <div class="f"><label class="label" for="r-total">Total spent (₱)</label><input id="r-total" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Cans × cost"></div>
+          <div class="f"><label class="label" for="r-from">Paid from</label><select id="r-from"><option value="Cash">Cash</option><option value="GCash">GCash</option><option value="MariBank">MariBank</option></select></div>
+        </div>
+        <div class="row2">
+          <div class="f"><label class="label" for="r-when">Date and time bought</label><input id="r-when" type="datetime-local"></div>
+          <button class="btn ghost" type="submit" id="restock-btn">Add stock</button>
+        </div>
+      </form>
+      <div class="msg" id="restock-msg" role="status"></div>
+      <details class="rhist">
+        <summary>Stock history</summary>
+        <div id="restock-hist"></div>
+      </details>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DEFAULT_FLAVORS = ["Original Green", "Ultra White", "Ultra Paradise", "Mango Loco", "Pipeline Punch", "Ultra Fiesta", "Ultra Peachy Keen"];
+  var LOW_STOCK = 2;
+  var db = null, salesCol = null, restockCol = null, refCol = null, settingsDoc = null;
+  var sales = [], restocks = [], refmoves = [], settings = {};
+  var range = "today";
+  var loaded = { sales: false, restocks: false, refmoves: false, settings: false };
+  var pendingDelete = null;
+  var pendingRestockDelete = null;
+  var editingSale = null;
+  var editing = -1, editKind = "ref", editVal = "", justOpened = false, pendingPaid = null;
+  var view = "home", novMode = "daily";
+  var moneyCol = null, moneyEntries = [], mmOffset = 0, mmEditing = null, mmPendingDel = null;
+  var octBatchCol = null, octCfgDoc = null, octBatches = [], octCfg = {};
+  var octEditFlavor = "", octEditVal = "", octEditBatch = null, octBatchVals = {};
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function peso(n) { return "₱" + (Number(n) || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 }); }
+  function int(n) { return (Number(n) || 0).toLocaleString("en-PH"); }
+  function startOfDay(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); }
+  function ymd(d) { var x = new Date(d); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); }
+  function dtLocal(ts) { var d = new Date(ts); return ymd(ts) + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function whenTs(id) {
+    var el = $(id);
+    var t = el.dataset.touched && el.value ? new Date(el.value).getTime() : Date.now();
+    return isNaN(t) ? Date.now() : t;
+  }
+  function flavors() {
+    var base = Array.isArray(settings.flavors) ? settings.flavors.slice() : DEFAULT_FLAVORS.slice();
+    sales.concat(restocks, refmoves).forEach(function (r) { if (r.flavor && base.indexOf(r.flavor) < 0) base.push(r.flavor); });
+    return base;
+  }
+  function rangeStart() {
+    var now = new Date();
+    if (range === "today") return startOfDay(now);
+    if (range === "week") return startOfDay(now) - 6 * 86400000;
+    if (range === "month") return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    return 0;
+  }
+  function rangeLabel() { return { today: "Today", week: "Last 7 days", month: "This month", all: "All time" }[range]; }
+  function inRange() { var s = rangeStart(); return sales.filter(function (x) { return x.ts >= s; }); }
+  function say(id, text, err) { var el = $(id); el.textContent = text || ""; el.className = "msg" + (err ? " err" : ""); }
+
+  function costOf(s) { return s.cost > 0 ? Number(s.cost) : (Number(settings.cost) || 0); }
+
+  /* ---------- render ---------- */
+  function render() {
+    var list = inRange();
+    var rev = 0, cans = 0, profit = 0;
+    list.forEach(function (x) { rev += x.qty * x.price; cans += x.qty; profit += x.qty * (x.price - costOf(x)); });
+    var owed = 0, owedCount = 0;
+    sales.forEach(function (x) { if (x.paid === false) { owed += x.qty * x.price; owedCount++; } });
+    $("s-sales").textContent = peso(rev);
+    $("s-sales-note").textContent = list.length + (list.length === 1 ? " sale" : " sales") + " · " + rangeLabel();
+    $("s-cans").textContent = int(cans);
+    $("s-cans-note").textContent = list.length ? "Avg " + (cans / list.length).toFixed(1) + " per sale" : " ";
+    $("s-profit").textContent = peso(profit);
+    $("s-profit-note").textContent = rev > 0 ? Math.round((profit / rev) * 100) + "% margin" : " ";
+    var sm = stockMap(), rm = refMap(), totalAll = 0, totalRef = 0;
+    Object.keys(sm).forEach(function (k) { totalAll += sm[k]; totalRef += rm[k] || 0; });
+    var tracked = restocks.length > 0 || refmoves.length > 0;
+    $("s-stock").textContent = tracked ? int(totalRef) : "–";
+    $("s-stock-note").textContent = tracked ? "Stock on hand " + int(totalAll) : "Add a restock below";
+    var exp = 0, expN = 0, rs = rangeStart();
+    restocks.forEach(function (r) { var e = expenseOf(r); if (e > 0 && r.ts >= rs) { exp += e; expN++; } });
+    $("s-exp").textContent = peso(exp);
+    $("s-exp-note").textContent = expN ? expN + (expN === 1 ? " restock" : " restocks") + " · " + rangeLabel() : rangeLabel();
+    $("s-owed").textContent = peso(owed);
+    $("s-owed-note").textContent = owedCount ? owedCount + " unpaid · all time" : "Nobody owes you";
+
+    renderSelects();
+    renderStock();
+    renderRestockHist();
+    renderMoney();
+    renderNov();
+    renderHome();
+    renderMoneyMgr();
+    renderDailyLog();
+    if (!($("view-accounting").contains(document.activeElement) && (octEditFlavor || octEditBatch))) renderOct();
+    renderMix(list);
+    if (!(editingSale && $("history").contains(document.activeElement))) renderHistory(list);
+    renderSettings();
+    updateTotal();
+  }
+
+  function renderSelects() {
+    var fl = flavors();
+    ["f-flavor", "r-flavor", "m-flavor"].forEach(function (id) {
+      var sel = $(id), cur = sel.value;
+      sel.innerHTML = fl.map(function (f) { return '<option value="' + esc(f) + '">' + esc(f) + "</option>"; }).join("");
+      if (cur && fl.indexOf(cur) >= 0) sel.value = cur;
+    });
+  }
+
+  function stockMap() {
+    var m = {};
+    flavors().forEach(function (f) { m[f] = 0; });
+    restocks.forEach(function (r) { m[r.flavor] = (m[r.flavor] || 0) + r.qty; });
+    sales.forEach(function (s) { m[s.flavor] = (m[s.flavor] || 0) - s.qty; });
+    return m;
+  }
+
+  function refMap() {
+    var m = {};
+    flavors().forEach(function (f) { m[f] = 0; });
+    refmoves.forEach(function (r) { m[r.flavor] = (m[r.flavor] || 0) + r.qty; });
+    sales.forEach(function (s) { m[s.flavor] = (m[s.flavor] || 0) - s.qty; });
+    return m;
+  }
+
+  function expenseOf(r) {
+    if (r.type === "adjust") return 0;
+    if (r.expense != null) return Number(r.expense) || 0;
+    return r.cost > 0 ? r.qty * r.cost : 0;
+  }
+
+  var ACCOUNTS = ["Cash", "GCash", "MariBank"];
+  function calcBalances() {
+    var open = settings.open || {};
+    var bal = { Cash: Number(open.cash) || 0, GCash: Number(open.gcash) || 0, MariBank: Number(open.maribank) || 0 };
+    var loose = 0;
+    sales.forEach(function (s) {
+      if (s.paid === false) return;
+      var a = s.method === "Debt" ? s.paidMethod : s.method;
+      if (ACCOUNTS.indexOf(a) >= 0) bal[a] += s.qty * s.price;
+    });
+    restocks.forEach(function (r) {
+      var e = expenseOf(r); if (!(e > 0)) return;
+      if (ACCOUNTS.indexOf(r.paidFrom) >= 0) bal[r.paidFrom] -= e; else loose += e;
+    });
+    moneyEntries.forEach(function (m) {
+      var v = Number(m.amount) || 0;
+      if (m.type === "income" && ACCOUNTS.indexOf(m.account) >= 0) bal[m.account] += v;
+      else if (m.type === "expense" && ACCOUNTS.indexOf(m.account) >= 0) bal[m.account] -= v;
+      else if (m.type === "transfer") {
+        if (ACCOUNTS.indexOf(m.account) >= 0) bal[m.account] -= v;
+        if (ACCOUNTS.indexOf(m.to) >= 0) bal[m.to] += v;
+      }
+    });
+    return { bal: bal, loose: loose };
+  }
+  function renderMoney() {
+    var cb = calcBalances(), bal = cb.bal, loose = cb.loose;
+    var total = 0;
+    var tile = function (label, v, cls) {
+      return '<div class="mtile' + cls + '"><div class="label">' + esc(label) + '</div><div class="num tnum' + (v < 0 ? " neg" : "") + '">' + peso(v) + "</div></div>";
+    };
+    var html = ACCOUNTS.map(function (a) { total += bal[a]; return tile(a, bal[a], ""); }).join("");
+    $("money").innerHTML = html + tile("Total", total, " total");
+    var note = "Paid sales minus restock expenses, plus the starting amounts you set under Prices and flavors, plus everything in the Money Manager. Debt counts once you mark it paid.";
+    if (loose > 0) note += " " + peso(loose) + " of restock spending has no account yet, so it is not taken out of any balance.";
+    $("money-note").textContent = note;
+  }
+
+  function renderStock() {
+    var all = stockMap(), ref = refMap(), fl = flavors();
+    var tracked = restocks.length > 0 || refmoves.length > 0;
+    var ae = document.activeElement;
+    var hadFocus = !!(ae && ae.id === "adj-input");
+    var totRef = 0, totAll = 0;
+    fl.forEach(function (f) { totRef += ref[f] || 0; totAll += all[f] || 0; });
+    var buildRow = function (f, idx, kind) {
+      var r = ref[f] || 0, a = all[f] || 0, n = kind === "ref" ? r : a;
+      if (editing === idx && editKind === kind) {
+        return '<div class="stock-row editing"><div>' + esc(f) + '</div><div class="adj"><div class="adjf"><label class="label" for="adj-input">' + (kind === "ref" ? "In ref" : "Stock on hand") + '</label><input id="adj-input" type="number" inputmode="numeric" min="0" step="1" value="' + esc(editVal) + '"></div>' +
+          '<button class="btn small" type="button" data-act="adj-save" data-kind="' + kind + '" data-i="' + idx + '">Save</button><button class="btn ghost small" type="button" data-act="adj-cancel">Cancel</button></div></div>';
+      }
+      var cls = "", tag = "", sub = "";
+      if (kind === "ref") {
+        cls = !tracked ? "" : r <= 0 ? "out" : r <= LOW_STOCK ? "low" : "";
+        tag = !tracked ? "" : r <= 0 ? '<span class="tag" style="color:var(--bad)">Out</span>' : r <= LOW_STOCK ? '<span class="tag" style="color:var(--warn)">Low</span>' : "";
+      } else if (tracked) {
+        sub = '<div class="fsub">In ref ' + int(r) + " · Not in ref " + int(a - r) + "</div>";
+      }
+      return '<div class="stock-row"><div><div>' + esc(f) + tag + "</div>" + sub + "</div>" +
+        '<div class="qtywrap"><div class="qty tnum ' + cls + '">' + (tracked ? int(n) : "–") + '</div><div class="qlabel">' + (kind === "ref" ? "in ref" : "on hand") + "</div></div>" +
+        '<button class="btn ghost small" type="button" data-act="adj" data-kind="' + kind + '" data-i="' + idx + '">Edit</button></div>';
+    };
+    var refRows = fl.map(function (f, i) { return buildRow(f, i, "ref"); }).join("");
+    var handRows = fl.map(function (f, i) { return buildRow(f, i, "hand"); }).join("");
+    $("stock-list").innerHTML = (tracked ? "" : '<p class="empty" style="padding-top:0">Add your first restock below, then move cans to the ref as you chill them.</p>') + refRows +
+      (tracked ? '<div class="stock-row total refrow"><div>Total in ref</div><div class="qty tnum">' + int(totRef) + "</div></div>" : "");
+    $("hand-list").innerHTML = handRows + (tracked ? '<div class="stock-row total"><div>Total stock on hand</div><div class="qty tnum">' + int(totAll) + "</div></div>" : "");
+    if (editing >= 0 && (hadFocus || justOpened)) {
+      var inp = $("adj-input");
+      if (inp) { inp.focus(); if (justOpened) inp.select(); }
+      justOpened = false;
+    }
+  }
+
+  function renderRestockHist() {
+    var el = $("restock-hist");
+    var items = restocks.map(function (r) { return { col: "restocks", r: r }; }).concat(refmoves.map(function (r) { return { col: "refmoves", r: r }; }));
+    items.sort(function (a, b) { return b.r.ts - a.r.ts; });
+    if (!items.length) { el.innerHTML = '<p class="empty" style="padding:8px 0 0">Nothing yet. Restocks, moves to the ref and count changes will be listed here.</p>'; return; }
+    el.innerHTML = items.slice(0, 60).map(function (it) {
+      var r = it.r;
+      var when = new Date(r.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      var what, meta;
+      if (it.col === "refmoves") {
+        what = r.type === "move" ? "Moved " + int(r.qty) + " × " + r.flavor + " to ref" : "Ref count changed " + (r.qty > 0 ? "+" : "−") + int(Math.abs(r.qty)) + " × " + r.flavor;
+        meta = when;
+      } else {
+        var adj = r.type === "adjust";
+        what = adj ? "Stock on hand changed " + (r.qty > 0 ? "+" : "−") + int(Math.abs(r.qty)) + " × " + r.flavor : "Added " + int(r.qty) + " × " + r.flavor;
+        var parts = [(adj ? "" : "Bought ") + when];
+        if (!adj && r.cost != null) parts.push(peso(r.cost) + " per can");
+        var e = expenseOf(r);
+        if (e > 0) parts.push("Spent " + peso(e) + (r.paidFrom ? " from " + r.paidFrom : ""));
+        meta = parts.join(" · ");
+      }
+      var del = pendingRestockDelete === r.id
+        ? '<button class="btn danger small" type="button" data-act="rh-yes" data-col="' + it.col + '" data-id="' + esc(r.id) + '">Delete?</button><button class="btn ghost small" type="button" data-act="rh-no">Keep</button>'
+        : '<button class="btn ghost small" type="button" data-act="rh-del" data-col="' + it.col + '" data-id="' + esc(r.id) + '">Delete</button>';
+      return '<div class="rh"><div class="main"><div class="what">' + esc(what) + '</div><div class="meta">' + esc(meta) + '</div></div><div class="right">' + del + "</div></div>";
+    }).join("");
+  }
+
+  function saveAdjust(f, kind) {
+    if (!db) return say("stock-msg", "Saving is not available in this view.", true);
+    var t = parseInt(editVal, 10);
+    if (!(t >= 0)) return say("stock-msg", "Enter a count, 0 or more.", true);
+    var curRef = refMap()[f] || 0, curAll = stockMap()[f] || 0;
+    if (kind === "ref" && t > curAll) return say("stock-msg", "In ref can't be more than stock on hand (" + int(curAll) + "). Raise the stock on hand first.", true);
+    if (kind === "hand" && t < curRef) return say("stock-msg", "Stock on hand can't be lower than what is in the ref (" + int(curRef) + ").", true);
+    var delta = t - (kind === "ref" ? curRef : curAll);
+    editing = -1;
+    renderStock();
+    if (!delta) return say("stock-msg", f + " already shows " + t + ".");
+    var rec = { ts: Date.now(), flavor: f, qty: delta, type: "adjust" };
+    var req = kind === "ref" ? refCol.add(rec) : restockCol.add(Object.assign(rec, { cost: null, expense: null, paidFrom: null }));
+    req.then(function () { say("stock-msg", f + ": " + t + (kind === "ref" ? " in ref." : " in stock on hand.")); })
+      .catch(function () { say("stock-msg", "Could not save. Try again.", true); });
+  }
+
+  function stockClick(e) {
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var act = b.dataset.act, fl = flavors(), i = parseInt(b.dataset.i, 10), kind = b.dataset.kind;
+    if (act === "adj") { editing = i; editKind = kind; editVal = String((kind === "ref" ? refMap() : stockMap())[fl[i]] || 0); justOpened = true; renderStock(); }
+    else if (act === "adj-cancel") { editing = -1; renderStock(); }
+    else if (act === "adj-save") { saveAdjust(fl[i], kind); }
+  }
+  function stockInput(e) { if (e.target.id === "adj-input") editVal = e.target.value; }
+  function stockKey(e) {
+    if (e.target.id !== "adj-input") return;
+    if (e.key === "Enter") { e.preventDefault(); saveAdjust(flavors()[editing], editKind); }
+    else if (e.key === "Escape") { editing = -1; renderStock(); }
+  }
+  ["stock-list", "hand-list"].forEach(function (id) {
+    $(id).addEventListener("click", stockClick);
+    $(id).addEventListener("input", stockInput);
+    $(id).addEventListener("keydown", stockKey);
+  });
+  $("restock-hist").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b || !db) return;
+    var act = b.dataset.act, id = b.dataset.id, col = b.dataset.col === "refmoves" ? refCol : restockCol;
+    if (act === "rh-del") { pendingRestockDelete = id; renderRestockHist(); }
+    else if (act === "rh-no") { pendingRestockDelete = null; renderRestockHist(); }
+    else if (act === "rh-yes") { pendingRestockDelete = null; col.doc(id).delete().catch(function () {}); }
+  });
+
+  $("move-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!db) return say("stock-msg", "Saving is not available in this view.", true);
+    var f = $("m-flavor").value, q = parseInt($("m-qty").value, 10);
+    if (!(q >= 1)) return say("stock-msg", "Enter how many cans you put in the ref.", true);
+    var storage = (stockMap()[f] || 0) - (refMap()[f] || 0);
+    if (q > storage) return say("stock-msg", "Only " + int(storage) + " of " + f + " not in the ref yet. Restock it or fix the stock on hand first.", true);
+    var btn = $("move-btn"); btn.disabled = true; say("stock-msg", "Saving…");
+    refCol.add({ ts: Date.now(), flavor: f, qty: q, type: "move" }).then(function () {
+      say("stock-msg", "Moved " + q + " × " + f + " to the ref.");
+      $("m-qty").value = "";
+    }).catch(function () { say("stock-msg", "Could not save. Try again.", true); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  function renderMix(list) {
+    var m = {};
+    list.forEach(function (s) { m[s.flavor] = (m[s.flavor] || 0) + s.qty; });
+    var names = Object.keys(m).sort(function (a, b) { return m[b] - m[a]; });
+    if (!names.length) { $("mix").innerHTML = '<p class="empty" style="padding:0">No cans sold in this range yet.</p>'; return; }
+    var max = m[names[0]];
+    $("mix").innerHTML = names.map(function (n) {
+      return '<div class="bar-row"><div class="name">' + esc(n) + '</div><div class="track"><div class="fill" style="width:' + Math.round((m[n] / max) * 100) + '%"></div></div><div class="v tnum">' + int(m[n]) + "</div></div>";
+    }).join("");
+  }
+
+  function renderHistory(list) {
+    $("export-btn").hidden = sales.length === 0;
+    if (!list.length) {
+      $("history").innerHTML = '<p class="empty">' + (sales.length ? "No sales in this range." : "No sales yet. Record the first one above and it will show up here.") + "</p>";
+      return;
+    }
+    $("history").innerHTML = list.map(function (s) {
+      var when = new Date(s.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      var meta = [when, s.buyer, s.method + (s.method === "Debt" && s.paid !== false ? " · paid via " + (s.paidMethod || "?") : "")].filter(Boolean).map(esc).join(" · ");
+      var owed = s.paid === false;
+      if (editingSale === s.id) return saleEditForm(s);
+      var del = pendingDelete === s.id
+        ? '<button class="btn danger small" data-act="del-yes" data-id="' + esc(s.id) + '">Delete?</button><button class="btn ghost small" data-act="del-no">Keep</button>'
+        : '<button class="btn ghost small" data-act="del" data-id="' + esc(s.id) + '" aria-label="Delete sale">Delete</button>';
+      return '<div class="sale"><div class="main"><div class="what">' + int(s.qty) + " × " + esc(s.flavor) + '</div><div class="meta">' + meta + '</div></div><div class="right">' +
+        (owed ? '<span class="pill">Debt</span>' + (pendingPaid === s.id
+          ? '<span class="label">Paid via</span>' + ACCOUNTS.map(function (a) { return '<button class="btn small" type="button" data-act="paid-as" data-m="' + a + '" data-id="' + esc(s.id) + '">' + a + "</button>"; }).join("") + '<button class="btn ghost small" type="button" data-act="paid-no">Cancel</button>'
+          : '<button class="btn small" data-act="paid" data-id="' + esc(s.id) + '">Mark paid</button>') : "") +
+        '<div class="amt tnum">' + peso(s.qty * s.price) + '</div><button class="btn ghost small" type="button" data-act="edit" data-id="' + esc(s.id) + '">Edit</button>' + del + "</div></div>";
+    }).join("");
+  }
+
+  function saleEditForm(s) {
+    var fl = flavors();
+    if (fl.indexOf(s.flavor) < 0) fl.push(s.flavor);
+    var opts = fl.map(function (f) { return '<option value="' + esc(f) + '"' + (f === s.flavor ? " selected" : "") + ">" + esc(f) + "</option>"; }).join("");
+    var methods = ["Cash", "GCash", "MariBank", "Debt"];
+    if (s.method && methods.indexOf(s.method) < 0) methods.push(s.method);
+    var mopts = methods.map(function (m) { return '<option value="' + esc(m) + '"' + (m === s.method ? " selected" : "") + ">" + esc(m) + "</option>"; }).join("");
+    return '<div class="sale editing"><form class="edit-form" id="edit-sale-form" autocomplete="off">' +
+      '<div class="f full"><label class="label" for="es-flavor">Flavor</label><select id="es-flavor">' + opts + "</select></div>" +
+      '<div class="f"><label class="label" for="es-qty">Cans</label><input id="es-qty" type="number" inputmode="numeric" min="1" step="1" value="' + esc(s.qty) + '"></div>' +
+      '<div class="f"><label class="label" for="es-price">Price per can (₱)</label><input id="es-price" type="number" inputmode="decimal" min="0" step="0.5" value="' + esc(s.price) + '"></div>' +
+      '<div class="f"><label class="label" for="es-buyer">Buyer</label><input id="es-buyer" type="text" maxlength="60" value="' + esc(s.buyer || "") + '"></div>' +
+      '<div class="f"><label class="label" for="es-method">Payment</label><select id="es-method">' + mopts + "</select></div>" +
+      '<div class="f full"><label class="label" for="es-when">Date and time</label><input id="es-when" type="datetime-local" value="' + esc(dtLocal(s.ts)) + '"></div>' +
+      '<div class="msg" id="es-msg" role="status"></div>' +
+      '<div class="f full" style="flex-direction:row;gap:8px"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" data-act="edit-cancel">Cancel</button></div>' +
+      "</form></div>";
+  }
+
+  function saveSaleEdit(id) {
+    var old = sales.filter(function (x) { return x.id === id; })[0];
+    if (!old || !db) return;
+    var qty = parseInt($("es-qty").value, 10), price = parseFloat($("es-price").value), ts = new Date($("es-when").value).getTime();
+    if (!(qty >= 1)) return say("es-msg", "Enter at least 1 can.", true);
+    if (!(price >= 0)) return say("es-msg", "Enter the price per can.", true);
+    if (isNaN(ts)) return say("es-msg", "Enter the date and time of the sale.", true);
+    var method = $("es-method").value;
+    var paid = method !== "Debt" ? true : (old.method === "Debt" ? old.paid !== false : false);
+    say("es-msg", "Saving…");
+    salesCol.doc(id).update({ flavor: $("es-flavor").value, qty: qty, price: price, buyer: $("es-buyer").value.trim(), method: method, paid: paid, ts: ts })
+      .then(function () { editingSale = null; render(); })
+      .catch(function () { say("es-msg", "Could not save. Try again.", true); });
+  }
+
+  $("history").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (editingSale) saveSaleEdit(editingSale);
+  });
+
+  /* ---------- November summary ---------- */
+  function addDays(ts, n) { var d = new Date(ts); d.setDate(d.getDate() + n); return d.getTime(); }
+  function monday(ts) { var d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }
+  function fmtDay(ts) { return new Date(ts).toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" }); }
+  function fmtShort(ts) { return new Date(ts).toLocaleDateString("en-PH", { month: "short", day: "numeric" }); }
+  function between(a, b) { return sales.filter(function (x) { return x.ts >= a && x.ts < b; }); }
+  function agg(list) {
+    var o = { cans: 0, rev: 0, profit: 0, n: 0 };
+    list.forEach(function (x) { o.cans += x.qty; o.rev += x.qty * x.price; o.profit += x.qty * (x.price - costOf(x)); o.n++; });
+    return o;
+  }
+
+  function renderNov() {
+    var now = new Date(), y = now.getFullYear(), mo = now.getMonth();
+    var monthS = new Date(y, mo, 1).getTime(), nextS = new Date(y, mo + 1, 1).getTime();
+    var todayS = startOfDay(now), weekS = monday(now.getTime());
+    $("nov-title").textContent = now.toLocaleDateString("en-PH", { month: "long", year: "numeric" }) + " sales summary";
+    var card = function (label, a) {
+      return '<div class="mtile"><div class="label">' + esc(label) + '</div><div class="num tnum">' + int(a.cans) + ' <span class="unit">cans</span></div><div class="note">' + peso(a.rev) + " sales · " + peso(a.profit) + " profit</div></div>";
+    };
+    $("nov-cards").innerHTML = card("Today", agg(between(todayS, addDays(todayS, 1)))) + card("This week", agg(between(weekS, addDays(weekS, 7)))) + card("This month", agg(between(monthS, nextS)));
+
+    var rows = [], head = "Day", showTotal = true;
+    if (novMode === "daily") {
+      for (var d = now.getDate(); d >= 1; d--) {
+        var ds = new Date(y, mo, d).getTime(), de = new Date(y, mo, d + 1).getTime();
+        rows.push({ label: fmtDay(ds), a: agg(between(ds, de)) });
+      }
+    } else if (novMode === "weekly") {
+      head = "Week";
+      for (var t = monday(monthS); t <= todayS; t = addDays(t, 7)) {
+        var s0 = Math.max(t, monthS), e0 = Math.min(addDays(t, 7), nextS), last = addDays(e0, -1);
+        rows.unshift({ label: startOfDay(s0) === startOfDay(last) ? fmtShort(s0) : fmtShort(s0) + " – " + fmtShort(last), a: agg(between(s0, e0)) });
+      }
+    } else {
+      head = "Month"; showTotal = false;
+      var keys = {};
+      keys[y + "-" + mo] = true;
+      sales.forEach(function (x) { var dd = new Date(x.ts); keys[dd.getFullYear() + "-" + dd.getMonth()] = true; });
+      Object.keys(keys).map(function (k) { var pr = k.split("-"); return [parseInt(pr[0], 10), parseInt(pr[1], 10)]; })
+        .sort(function (a, b) { return (b[0] - a[0]) || (b[1] - a[1]); })
+        .forEach(function (pr) {
+          var a0 = new Date(pr[0], pr[1], 1).getTime(), b0 = new Date(pr[0], pr[1] + 1, 1).getTime();
+          rows.push({ label: new Date(a0).toLocaleDateString("en-PH", { month: "long", year: "numeric" }), a: agg(between(a0, b0)) });
+        });
+    }
+    var maxC = 1;
+    rows.forEach(function (r) { if (r.a.cans > maxC) maxC = r.a.cans; });
+    var body = rows.map(function (r) {
+      return '<tr class="' + (r.a.cans ? "" : "dim") + '"><td>' + esc(r.label) + '</td><td class="r">' + int(r.a.cans) + '</td><td class="r">' + peso(r.a.rev) + '</td><td class="r">' + peso(r.a.profit) + '</td><td class="barcell"><div class="track"><div class="fill" style="width:' + Math.round((r.a.cans / maxC) * 100) + '%"></div></div></td></tr>';
+    }).join("");
+    if (showTotal) {
+      var T = agg(between(monthS, nextS));
+      body += '<tr class="totalrow"><td>This month</td><td class="r">' + int(T.cans) + '</td><td class="r">' + peso(T.rev) + '</td><td class="r">' + peso(T.profit) + "</td><td></td></tr>";
+    }
+    $("nov-table").innerHTML = '<div class="tscroll"><table class="tbl"><thead><tr><th>' + head + '</th><th class="r">Cans</th><th class="r">Sales</th><th class="r">Profit</th><th></th></tr></thead><tbody>' + body + "</tbody></table></div>";
+    Array.prototype.forEach.call($("nov-tabs").children, function (b) { b.setAttribute("aria-pressed", String(b.dataset.mode === novMode)); });
+  }
+  $("nov-tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]"); if (!b) return;
+    novMode = b.dataset.mode; renderNov();
+  });
+
+  /* ---------- October ---------- */
+  function colorOf(f) { var m = /\(([^)]+)\)/.exec(f); return m ? m[1] : f; }
+  function octNumbers() {
+    var cfg = octCfg || {};
+    var price = cfg.price != null ? Number(cfg.price) : 95, cost = cfg.cost != null ? Number(cfg.cost) : 54.17;
+    var per = cfg.perCase != null ? Number(cfg.perCase) : 12;
+    var bought = {}, order = [], capital = 0, shipping = 0, cases = 0;
+    octBatches.forEach(function (b) {
+      capital += Number(b.capital) || 0; shipping += Number(b.shipping) || 0;
+      (b.items || []).forEach(function (it) {
+        if (bought[it.flavor] == null) { bought[it.flavor] = 0; order.push(it.flavor); }
+        bought[it.flavor] += (Number(it.cases) || 0) * per; cases += Number(it.cases) || 0;
+      });
+    });
+    var sold = {};
+    (Array.isArray(cfg.sold) ? cfg.sold : []).forEach(function (x) {
+      sold[x.flavor] = Number(x.qty) || 0;
+      if (bought[x.flavor] == null) { bought[x.flavor] = 0; order.push(x.flavor); }
+    });
+    var boughtT = 0, soldT = 0;
+    order.forEach(function (f) { boughtT += bought[f]; soldT += sold[f] || 0; });
+    var revenue = soldT * price, cogs = soldT * cost;
+    return { price: price, cost: cost, per: per, bought: bought, sold: sold, order: order, capital: capital, shipping: shipping, cases: cases, boughtT: boughtT, soldT: soldT, revenue: revenue, cogs: cogs, net: revenue - cogs - shipping, left: boughtT - soldT };
+  }
+
+  function renderOct() {
+    var o = octNumbers();
+    var ae = document.activeElement;
+    if (ae !== $("oct-price")) $("oct-price").value = o.price;
+    if (ae !== $("oct-cost")) $("oct-cost").value = o.cost;
+    if (!octBatches.length && !(octCfg && octCfg.sold)) {
+      $("oct-cards").innerHTML = ""; $("oct-note").textContent = ""; $("oct-batches").innerHTML = ""; $("oct-flavors").innerHTML = "";
+      $("oct-math").innerHTML = '<p class="empty" style="padding:0">No October data yet.</p>';
+      return;
+    }
+    var tile = function (label, val, note, neg) {
+      return '<div class="mtile"><div class="label">' + esc(label) + '</div><div class="num tnum' + (neg ? " neg" : "") + '">' + val + "</div>" + (note ? '<div class="note">' + esc(note) + "</div>" : "") + "</div>";
+    };
+    $("oct-cards").innerHTML =
+      tile("Net profit", peso(o.net), "After the cost of cans sold and shipping", o.net < 0) +
+      tile("Sales", peso(o.revenue), int(o.soldT) + " cans × " + peso(o.price)) +
+      tile("Cans sold", int(o.soldT), "of " + int(o.boughtT) + " bought") +
+      tile("Money spent", peso(o.capital + o.shipping), peso(o.capital) + " cans + " + peso(o.shipping) + " shipping");
+    $("oct-note").textContent = "Sold counts started as estimates: cans bought minus what was left in stock. Tap Edit on a flavor to enter the real number. October stays separate from the November sales.";
+
+    var row = function (label, val, cls) { return '<div class="math-row ' + cls + '"><span>' + label + '</span><span class="v tnum">' + val + "</span></div>"; };
+    $("oct-math").innerHTML =
+      row("Sales (" + int(o.soldT) + " cans × " + peso(o.price) + ")", peso(o.revenue), "") +
+      row("Cost of cans sold (" + int(o.soldT) + " × " + peso(o.cost) + ")", "− " + peso(o.cogs), "minus") +
+      row("Shipping fees", "− " + peso(o.shipping), "minus") +
+      row("Net profit", peso(o.net), "net") +
+      '<p class="fine">Cash view: sales of ' + peso(o.revenue) + " minus " + peso(o.capital + o.shipping) + " spent = " + peso(o.revenue - o.capital - o.shipping) + ". " + int(o.left) + " cans were left at the end of October, worth " + peso(o.left * o.cost) + " at cost.</p>";
+
+    var xs = octCfg.soldBefore16;
+    var spent1 = octBatches.length ? (Number(octBatches[0].capital) || 0) + (Number(octBatches[0].shipping) || 0) : 0;
+    var spent2 = (o.capital + o.shipping) - spent1;
+    var endCash = o.revenue - o.capital - o.shipping;
+    var splitHtml;
+    if (xs != null && Number(xs) >= 0 && Number(xs) <= o.soldT) {
+      var s1 = Number(xs) * o.price, s2 = (o.soldT - Number(xs)) * o.price;
+      splitHtml = row("Sales Oct 1–15 (" + int(xs) + " cans × " + peso(o.price) + ")", peso(s1), "") +
+        row("First purchase and shipping", "− " + peso(spent1), "minus") +
+        row("Cash on hand at Oct 15", peso(s1 - spent1), "sub") +
+        row("Sales Oct 16–31 (" + int(o.soldT - Number(xs)) + " cans × " + peso(o.price) + ")", peso(s2), "") +
+        row("Oct 16 order and shipping", "− " + peso(spent2), "minus") +
+        row("Cash on hand at Oct 31", peso(endCash), "net");
+    } else {
+      splitHtml = row("Cash on hand at Oct 31", peso(endCash), "net") +
+        '<p class="fine">Sales of ' + peso(o.revenue) + " minus " + peso(o.capital + o.shipping) + " spent, with " + int(o.left) + " cans left. Enter how many cans you sold before October 16 to see Oct 16 to Oct 31 on its own.</p>";
+    }
+    $("oct-cash").innerHTML = splitHtml;
+    if (document.activeElement !== $("oct-split") && xs != null) $("oct-split").value = xs;
+
+    var bRows = octBatches.map(function (b) {
+      var cs = (b.items || []).reduce(function (a, it) { return a + (Number(it.cases) || 0); }, 0);
+      var items = (b.items || []).map(function (it) { return esc(colorOf(it.flavor)) + " " + int(it.cases); }).join(" · ");
+      if (octEditBatch === b.id) {
+        return '<tr><td colspan="5"><div class="inline-edit"><strong>' + esc(b.label) + '</strong>' +
+          '<div class="adjf"><label class="label" for="ob-capital">Capital (₱)</label><input id="ob-capital" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(octBatchVals.capital) + '"></div>' +
+          '<div class="adjf"><label class="label" for="ob-shipping">Shipping (₱)</label><input id="ob-shipping" type="number" inputmode="decimal" min="0" step="0.01" value="' + esc(octBatchVals.shipping) + '"></div>' +
+          '<button class="btn small" type="button" data-act="ob-save" data-id="' + esc(b.id) + '">Save</button><button class="btn ghost small" type="button" data-act="ob-cancel">Cancel</button></div></td></tr>';
+      }
+      return "<tr><td>" + esc(b.label) + '<div class="fsub">' + int(cs) + " cases: " + items + '</div></td><td class="r">' + int(cs * o.per) + '</td><td class="r">' + peso(b.capital) + '</td><td class="r">' + peso(b.shipping) + '</td><td class="r"><button class="btn ghost small" type="button" data-act="ob-edit" data-id="' + esc(b.id) + '">Edit</button></td></tr>';
+    }).join("");
+    bRows += '<tr class="totalrow"><td>Total</td><td class="r">' + int(o.boughtT) + '</td><td class="r">' + peso(o.capital) + '</td><td class="r">' + peso(o.shipping) + "</td><td></td></tr>";
+    $("oct-batches").innerHTML = '<div class="tscroll"><table class="tbl"><thead><tr><th>Batch</th><th class="r">Cans</th><th class="r">Capital</th><th class="r">Shipping</th><th></th></tr></thead><tbody>' + bRows + "</tbody></table></div>";
+
+    var fRows = o.order.map(function (f) {
+      var sd = o.sold[f] || 0;
+      if (octEditFlavor === f) {
+        return "<tr><td>" + esc(f) + '</td><td class="r">' + int(o.bought[f]) + '</td><td class="r"><input id="of-input" type="number" inputmode="numeric" min="0" step="1" value="' + esc(octEditVal) + '" aria-label="Cans of ' + esc(f) + ' sold in October"></td><td></td><td class="r"><button class="btn small" type="button" data-act="of-save" data-f="' + esc(f) + '">Save</button> <button class="btn ghost small" type="button" data-act="of-cancel">Cancel</button></td></tr>';
+      }
+      return "<tr><td>" + esc(f) + '</td><td class="r">' + int(o.bought[f]) + '</td><td class="r">' + int(sd) + '</td><td class="r">' + int(o.bought[f] - sd) + '</td><td class="r"><button class="btn ghost small" type="button" data-act="of-edit" data-f="' + esc(f) + '">Edit</button></td></tr>';
+    }).join("");
+    fRows += '<tr class="totalrow"><td>Total</td><td class="r">' + int(o.boughtT) + '</td><td class="r">' + int(o.soldT) + '</td><td class="r">' + int(o.left) + "</td><td></td></tr>";
+    $("oct-flavors").innerHTML = '<div class="tscroll"><table class="tbl"><thead><tr><th>Flavor</th><th class="r">Bought</th><th class="r">Sold</th><th class="r">Left</th><th></th></tr></thead><tbody>' + fRows + "</tbody></table></div>";
+  }
+
+  function saveOctSold(name) {
+    if (!db) return say("oct-msg", "Saving is not available in this view.", true);
+    var q = parseInt(octEditVal, 10);
+    if (!(q >= 0)) return say("oct-msg", "Enter how many cans were sold, 0 or more.", true);
+    var cur = Array.isArray(octCfg.sold) ? octCfg.sold.map(function (x) { return { flavor: x.flavor, qty: x.qty }; }) : [];
+    var hit = false;
+    cur.forEach(function (x) { if (x.flavor === name) { x.qty = q; hit = true; } });
+    if (!hit) cur.push({ flavor: name, qty: q });
+    octEditFlavor = "";
+    renderOct();
+    octCfgDoc.set(Object.assign({}, octCfg, { sold: cur })).then(function () { say("oct-msg", name + ": " + q + " sold in October."); })
+      .catch(function () { say("oct-msg", "Could not save. Try again.", true); });
+  }
+  function saveOctBatch(id) {
+    if (!db) return say("oct-msg", "Saving is not available in this view.", true);
+    var c = parseFloat(octBatchVals.capital), sh = parseFloat(octBatchVals.shipping);
+    if (!(c >= 0) || !(sh >= 0)) return say("oct-msg", "Enter the capital and the shipping, 0 or more.", true);
+    octEditBatch = null;
+    renderOct();
+    octBatchCol.doc(id).update({ capital: c, shipping: sh }).then(function () { say("oct-msg", "Purchase saved."); })
+      .catch(function () { say("oct-msg", "Could not save. Try again.", true); });
+  }
+
+  $("oct-flavors").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var act = b.dataset.act, name = b.dataset.f;
+    if (act === "of-edit") { octEditFlavor = name; octEditVal = String(octNumbers().sold[name] || 0); renderOct(); var i = $("of-input"); if (i) { i.focus(); i.select(); } }
+    else if (act === "of-cancel") { octEditFlavor = ""; renderOct(); }
+    else if (act === "of-save") { saveOctSold(name); }
+  });
+  $("oct-flavors").addEventListener("input", function (e) { if (e.target.id === "of-input") octEditVal = e.target.value; });
+  $("oct-flavors").addEventListener("keydown", function (e) {
+    if (e.target.id !== "of-input") return;
+    if (e.key === "Enter") { e.preventDefault(); saveOctSold(octEditFlavor); }
+    else if (e.key === "Escape") { octEditFlavor = ""; renderOct(); }
+  });
+  $("oct-batches").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    if (act === "ob-edit") {
+      var bt = octBatches.filter(function (x) { return x.id === id; })[0]; if (!bt) return;
+      octEditBatch = id; octBatchVals = { capital: String(bt.capital || 0), shipping: String(bt.shipping || 0) }; renderOct();
+      var i = $("ob-capital"); if (i) { i.focus(); i.select(); }
+    }
+    else if (act === "ob-cancel") { octEditBatch = null; renderOct(); }
+    else if (act === "ob-save") { saveOctBatch(id); }
+  });
+  $("oct-batches").addEventListener("input", function (e) {
+    if (e.target.id === "ob-capital") octBatchVals.capital = e.target.value;
+    else if (e.target.id === "ob-shipping") octBatchVals.shipping = e.target.value;
+  });
+  $("oct-batches").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && octEditBatch && (e.target.id === "ob-capital" || e.target.id === "ob-shipping")) { e.preventDefault(); saveOctBatch(octEditBatch); }
+    else if (e.key === "Escape" && octEditBatch) { octEditBatch = null; renderOct(); }
+  });
+  $("oct-pc-save").addEventListener("click", function () {
+    if (!db) return say("oct-msg", "Saving is not available in this view.", true);
+    var p = parseFloat($("oct-price").value), c = parseFloat($("oct-cost").value);
+    if (!(p >= 0) || !(c >= 0)) return say("oct-msg", "Enter both the selling price and the cost per can.", true);
+    octCfgDoc.set(Object.assign({}, octCfg, { price: p, cost: c })).then(function () { say("oct-msg", "Price and cost saved."); })
+      .catch(function () { say("oct-msg", "Could not save. Try again.", true); });
+  });
+
+  /* ---------- daily log ---------- */
+  var MONTHS = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
+  function renderDailyLog() {
+    var groups = {}, keys = [];
+    sales.slice().sort(function (a, b) { return a.ts - b.ts; }).forEach(function (x) {
+      var b = (x.buyer || "").trim(); if (!b) return;
+      var k = ymd(x.ts);
+      if (!groups[k]) { groups[k] = []; keys.push(k); }
+      groups[k].push({ x: x, b: b });
+    });
+    if (!keys.length) { $("dlog").innerHTML = '<p class="empty" style="padding:0">No named buyers yet. Sales that have a buyer name are listed here, one day at a time.</p>'; return; }
+    $("dlog").innerHTML = keys.map(function (k) {
+      var d = new Date(groups[k][0].x.ts);
+      var title = MONTHS[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
+      var items = groups[k].map(function (g) {
+        var x = g.x;
+        var meta = int(x.qty) + " × " + x.flavor + " · " + peso(x.qty * x.price) + " · " + (x.method || "") + (x.paid === false ? " (unpaid)" : "");
+        return '<li><span class="dl-buyer">' + esc(g.b) + '</span><span class="dl-meta">' + esc(meta) + "</span></li>";
+      }).join("");
+      return '<div class="dl-day"><div class="dl-date">' + esc(title) + '</div><ul class="dl-list">' + items + "</ul></div>";
+    }).join("");
+  }
+
+  /* ---------- money manager ---------- */
+  var MM_INCOME = ["Salary", "Allowance", "Other income"];
+  var MM_EXPENSE = ["Salary", "Utilities", "Rent", "Supplies", "Food", "Other expense"];
+  function mmRange(off) {
+    var n = new Date();
+    return [new Date(n.getFullYear(), n.getMonth() + off, 1).getTime(), new Date(n.getFullYear(), n.getMonth() + off + 1, 1).getTime()];
+  }
+  function mmAuto(a, b) {
+    var out = [], perDay = {};
+    sales.forEach(function (x) {
+      if (x.paid === false || x.ts < a || x.ts >= b) return;
+      var k = ymd(x.ts);
+      var o = perDay[k] || (perDay[k] = { ts: startOfDay(x.ts) + 43200000, cans: 0, amt: 0 });
+      o.cans += x.qty; o.amt += x.qty * x.price;
+    });
+    Object.keys(perDay).forEach(function (k) {
+      var o = perDay[k];
+      out.push({ auto: true, ts: o.ts, type: "income", category: "Monster sales", amount: o.amt, account: "", note: o.cans + (o.cans === 1 ? " can sold" : " cans sold") });
+    });
+    restocks.forEach(function (r) {
+      var e = expenseOf(r);
+      if (e > 0 && r.ts >= a && r.ts < b) out.push({ auto: true, ts: r.ts, type: "expense", category: "Monster restock", amount: e, account: r.paidFrom || "", note: r.qty + " × " + r.flavor });
+    });
+    octBatches.forEach(function (bt) {
+      var ts = bt.ts || new Date(2026, 9, bt.order === 1 ? 1 : 16, 12).getTime();
+      if (ts < a || ts >= b) return;
+      if (Number(bt.capital) > 0) out.push({ auto: true, ts: ts, type: "expense", category: "Monster restock", amount: Number(bt.capital), account: "", note: bt.label + " purchase" });
+      if (Number(bt.shipping) > 0) out.push({ auto: true, ts: ts + 1, type: "expense", category: "Shipping", amount: Number(bt.shipping), account: "", note: bt.label + " shipping fee" });
+    });
+    var oe = new Date(2026, 9, 31, 12).getTime();
+    if (octBatches.length && oe >= a && oe < b) {
+      var o2 = octNumbers();
+      if (o2.revenue > 0) out.push({ auto: true, ts: oe, type: "income", category: "Monster sales", amount: o2.revenue, account: "", note: "October total, " + int(o2.soldT) + " cans (estimated)" });
+    }
+    return out;
+  }
+  function mmCompute(off) {
+    var r = mmRange(off), a = r[0], b = r[1];
+    var manual = moneyEntries.filter(function (m) { return m.ts >= a && m.ts < b; });
+    var all = manual.concat(mmAuto(a, b)).sort(function (x, y) { return y.ts - x.ts; });
+    var inc = 0, exp = 0, mon = 0, byInc = {}, byExp = {};
+    all.forEach(function (m) {
+      var v = Number(m.amount) || 0;
+      if (m.type === "income") { inc += v; byInc[m.category] = (byInc[m.category] || 0) + v; if (m.auto) mon += v; }
+      else if (m.type === "expense") { exp += v; byExp[m.category] = (byExp[m.category] || 0) + v; if (m.auto) mon -= v; }
+    });
+    return { a: a, entries: all, income: inc, expense: exp, net: inc - exp, monster: mon, byInc: byInc, byExp: byExp };
+  }
+  function mmType() { return document.querySelector('input[name="mmtype"]:checked').value; }
+  function mmSyncType() {
+    var t = mmType();
+    $("mm-cat-wrap").hidden = t === "transfer";
+    $("mm-to-wrap").hidden = t !== "transfer";
+    $("mm-acc-l").textContent = t === "transfer" ? "From account" : t === "income" ? "Paid into" : "Paid from";
+    var base = t === "income" ? MM_INCOME : MM_EXPENSE, seen = {}, opts = [];
+    base.concat(moneyEntries.filter(function (m) { return m.type === t; }).map(function (m) { return m.category; })).forEach(function (c) { if (c && !seen[c]) { seen[c] = 1; opts.push(c); } });
+    $("mm-cats").innerHTML = opts.map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join("");
+  }
+  function mmReset() {
+    mmEditing = null;
+    $("mm-amount").value = ""; $("mm-cat").value = ""; $("mm-note").value = "";
+    $("mm-when").value = dtLocal(Date.now()); $("mm-when").dataset.touched = "";
+    $("mm-save").textContent = "Save entry"; $("mm-cancel").hidden = true;
+  }
+  function mmLoad(m) {
+    mmEditing = m.id;
+    var rad = document.querySelector('input[name="mmtype"][value="' + m.type + '"]'); if (rad) rad.checked = true;
+    $("mm-amount").value = m.amount; $("mm-cat").value = m.type === "transfer" ? "" : (m.category || "");
+    $("mm-acc").value = m.account || "Cash"; if (m.to) $("mm-to").value = m.to;
+    $("mm-when").value = dtLocal(m.ts); $("mm-when").dataset.touched = "1";
+    $("mm-note").value = m.note || "";
+    $("mm-save").textContent = "Save changes"; $("mm-cancel").hidden = false;
+    mmSyncType();
+    say("mm-msg", "Editing an entry. Change it and save, or cancel.");
+    try { $("mm-form").scrollIntoView({ block: "center" }); } catch (err) {}
+  }
+  function renderMoneyMgr() {
+    var c = mmCompute(mmOffset);
+    $("mm-month").textContent = new Date(c.a).toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+    $("mm-next").disabled = mmOffset >= 0;
+    var tile = function (label, val, note, neg) {
+      return '<div class="mtile"><div class="label">' + esc(label) + '</div><div class="num tnum' + (neg ? " neg" : "") + '">' + val + "</div>" + (note ? '<div class="note">' + esc(note) + "</div>" : "") + "</div>";
+    };
+    $("mm-cards").innerHTML = tile("Income", peso(c.income), "") + tile("Expenses", peso(c.expense), "") +
+      tile("Net", peso(c.net), "Income minus expenses", c.net < 0) + tile("Monster", peso(c.monster), "Sales minus restocks and shipping", c.monster < 0);
+    var cb = calcBalances(), total = 0;
+    $("mm-bal").innerHTML = ACCOUNTS.map(function (a) { total += cb.bal[a]; return tile(a, peso(cb.bal[a]), "", cb.bal[a] < 0); }).join("") + tile("Total", peso(total), "", total < 0);
+
+    var catRows = function (map, cls) {
+      var names = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; });
+      if (!names.length) return '<p class="empty" style="padding:0">Nothing yet.</p>';
+      var max = map[names[0]] || 1;
+      return names.map(function (n) {
+        return '<div class="bar-row wide"><div class="name">' + esc(n) + '</div><div class="track"><div class="fill ' + cls + '" style="width:' + Math.round((map[n] / max) * 100) + '%"></div></div><div class="v tnum">' + peso(map[n]) + "</div></div>";
+      }).join("");
+    };
+    $("mm-cats-out").innerHTML = '<div class="label" style="margin-bottom:6px">Expenses</div>' + catRows(c.byExp, "exp") + '<div class="label" style="margin:16px 0 6px">Income</div>' + catRows(c.byInc, "");
+
+    if (!c.entries.length) { $("mm-list").innerHTML = '<p class="empty" style="padding:0">No entries this month yet. Add income or an expense above.</p>'; }
+    else {
+      $("mm-list").innerHTML = c.entries.map(function (m) {
+        var when = new Date(m.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        var isT = m.type === "transfer";
+        var what = isT ? "Transfer" : m.category;
+        var parts = [when];
+        if (isT) parts.push(m.account + " → " + m.to); else if (m.account) parts.push(m.account);
+        if (m.note) parts.push(m.note);
+        var sign = m.type === "income" ? "+ " : isT ? "" : "− ";
+        var cls = m.type === "income" ? "" : isT ? "flat" : "neg";
+        var btns = "";
+        if (!m.auto) {
+          btns = '<button class="btn ghost small" type="button" data-act="mm-edit" data-id="' + esc(m.id) + '">Edit</button>' +
+            (mmPendingDel === m.id
+              ? '<button class="btn danger small" type="button" data-act="mm-del-yes" data-id="' + esc(m.id) + '">Delete?</button><button class="btn ghost small" type="button" data-act="mm-del-no">Keep</button>'
+              : '<button class="btn ghost small" type="button" data-act="mm-del" data-id="' + esc(m.id) + '">Delete</button>');
+        }
+        return '<div class="sale"><div class="main"><div class="what">' + esc(what) + (m.auto ? ' <span class="pill">Auto</span>' : "") + '</div><div class="meta">' + esc(parts.join(" · ")) + '</div></div><div class="right"><div class="amt tnum ' + cls + '">' + sign + peso(m.amount) + "</div>" + btns + "</div></div>";
+      }).join("");
+    }
+    mmSyncType();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="mmtype"]'), function (r) { r.addEventListener("change", mmSyncType); });
+  $("mm-when").value = dtLocal(Date.now());
+  $("mm-when").addEventListener("input", function () { this.dataset.touched = "1"; });
+  $("mm-prev").addEventListener("click", function () { mmOffset--; renderMoneyMgr(); });
+  $("mm-next").addEventListener("click", function () { if (mmOffset < 0) { mmOffset++; renderMoneyMgr(); } });
+  $("mm-cancel").addEventListener("click", function () { mmReset(); say("mm-msg", ""); });
+  $("mm-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!db) return say("mm-msg", "Saving is not available in this view.", true);
+    var type = mmType(), amt = parseFloat($("mm-amount").value);
+    if (!(amt > 0)) return say("mm-msg", "Enter an amount above 0.", true);
+    var cat = $("mm-cat").value.trim(), acc = $("mm-acc").value, to = $("mm-to").value;
+    if (type !== "transfer" && !cat) return say("mm-msg", "Enter a category, like Salary.", true);
+    if (type === "transfer" && acc === to) return say("mm-msg", "Pick two different accounts.", true);
+    var rec = { ts: whenTs("mm-when"), type: type, amount: amt, category: type === "transfer" ? "Transfer" : cat, account: acc, to: type === "transfer" ? to : null, note: $("mm-note").value.trim() };
+    var btn = $("mm-save"); btn.disabled = true; say("mm-msg", "Saving…");
+    var req = mmEditing ? moneyCol.doc(mmEditing).set(rec) : moneyCol.add(rec);
+    req.then(function () { say("mm-msg", mmEditing ? "Entry updated." : "Entry saved."); mmReset(); })
+      .catch(function () { say("mm-msg", "Could not save. Try again.", true); })
+      .then(function () { btn.disabled = false; });
+  });
+  $("mm-list").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b || !db) return;
+    var id = b.dataset.id, act = b.dataset.act;
+    if (act === "mm-edit") { var m = moneyEntries.filter(function (x) { return x.id === id; })[0]; if (m) mmLoad(m); }
+    else if (act === "mm-del") { mmPendingDel = id; renderMoneyMgr(); }
+    else if (act === "mm-del-no") { mmPendingDel = null; renderMoneyMgr(); }
+    else if (act === "mm-del-yes") { mmPendingDel = null; if (mmEditing === id) mmReset(); moneyCol.doc(id).delete().catch(function () {}); }
+  });
+
+  /* ---------- home and tabs ---------- */
+  var VIEWS = ["home", "tracker", "statistics", "accounting", "money", "history", "stock"];
+  var RANGE_VIEWS = ["tracker", "statistics", "history"];
+  function sumMap(m) { var t = 0; Object.keys(m).forEach(function (k) { t += m[k]; }); return t; }
+  function calcMoneyTotal() { var cb = calcBalances(), t = 0; ACCOUNTS.forEach(function (a) { t += cb.bal[a]; }); return t; }
+  function renderHome() {
+    var now = new Date(), todayS = startOfDay(now), y = now.getFullYear(), mo = now.getMonth();
+    var monthS = new Date(y, mo, 1).getTime(), nextS = new Date(y, mo + 1, 1).getTime();
+    var td = agg(between(todayS, addDays(todayS, 1))), mn = agg(between(monthS, nextS));
+    var best = 1, perDay = {};
+    between(monthS, nextS).forEach(function (x) { var k = ymd(x.ts); perDay[k] = (perDay[k] || 0) + x.qty; if (perDay[k] > best) best = perDay[k]; });
+    var refT = sumMap(refMap()), handT = sumMap(stockMap());
+    $("h-today").textContent = int(td.cans);
+    $("h-today-bar").style.width = Math.round((td.cans / best) * 100) + "%";
+    $("h-ref").textContent = int(refT);
+    $("h-ref-label").textContent = "in the ref · of " + int(handT) + " on hand";
+    $("h-ref-bar").style.width = handT > 0 ? Math.max(0, Math.min(100, Math.round((refT / handT) * 100))) + "%" : "0%";
+    $("h-month").textContent = peso(mn.rev);
+    $("h-month-note").textContent = int(mn.cans) + (mn.cans === 1 ? " can" : " cans") + " · profit " + peso(mn.profit);
+    $("hm-tracker").textContent = "Today: " + int(td.cans) + (td.cans === 1 ? " can" : " cans") + " · " + peso(td.rev);
+    $("hm-statistics").textContent = "This month: " + int(mn.cans) + (mn.cans === 1 ? " can sold" : " cans sold");
+    $("hm-accounting").textContent = "Money on hand " + peso(calcMoneyTotal());
+    var mm0 = mmCompute(0);
+    $("hm-money").textContent = "This month: net " + peso(mm0.net);
+    $("hm-history").textContent = int(sales.length) + (sales.length === 1 ? " sale recorded" : " sales recorded");
+    $("hm-stock").textContent = int(refT) + " in ref · " + int(handT) + " on hand";
+  }
+  function tickClock() {
+    var d = new Date();
+    $("home-date").textContent = (d.toLocaleDateString("en-PH", { weekday: "short" }) + " · " + d.toLocaleDateString("en-PH", { month: "long" }) + " " + d.getDate()).toUpperCase();
+    $("home-time").textContent = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+    renderHome();
+  }
+
+  $("oct-split-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!db) return say("oct-msg2", "Saving is not available in this view.", true);
+    var n = parseInt($("oct-split").value, 10), o = octNumbers();
+    if (!(n >= 0) || n > o.soldT) return say("oct-msg2", "Enter a number from 0 to " + o.soldT + ".", true);
+    octCfgDoc.set(Object.assign({}, octCfg, { soldBefore16: n })).then(function () { say("oct-msg2", "Saved."); })
+      .catch(function () { say("oct-msg2", "Could not save. Try again.", true); });
+  });
+
+  function setView(v) {
+    if (VIEWS.indexOf(v) < 0) v = "home";
+    view = v;
+    VIEWS.forEach(function (n) { $("view-" + n).hidden = n !== v; });
+    $("chrome").hidden = v === "home";
+    Array.prototype.forEach.call($("view-tabs").children, function (b) { b.setAttribute("aria-pressed", String(b.dataset.view === v)); });
+    $("range-tabs").hidden = RANGE_VIEWS.indexOf(v) < 0;
+    try { window.scrollTo(0, 0); } catch (err) {}
+  }
+  function goView(e) {
+    var b = e.target.closest("button[data-view]"); if (!b) return;
+    setView(b.dataset.view);
+    try { location.hash = b.dataset.view; } catch (err) {}
+  }
+  $("view-tabs").addEventListener("click", goView);
+  $("menu").addEventListener("click", goView);
+  window.addEventListener("hashchange", function () { setView(location.hash.slice(1)); });
+  setInterval(tickClock, 20000);
+  tickClock();
+  try { setView(location.hash.slice(1)); } catch (err) { setView("home"); }
+
+  function renderSettings() {
+    var fl = Array.isArray(settings.flavors) ? settings.flavors : DEFAULT_FLAVORS;
+    $("flavor-chips").innerHTML = fl.map(function (f, i) {
+      return '<span class="chip">' + esc(f) + '<button type="button" data-act="rm-flavor" data-i="' + i + '" aria-label="Remove ' + esc(f) + '">×</button></span>';
+    }).join("");
+    var ae = document.activeElement;
+    if (ae !== $("p-price") && settings.price != null) $("p-price").value = settings.price;
+    if (ae !== $("p-cost") && settings.cost != null) $("p-cost").value = settings.cost;
+    if (ae !== $("f-price") && !$("f-price").dataset.touched && settings.price != null) $("f-price").value = settings.price;
+    var op = settings.open || {};
+    [["o-cash", "cash"], ["o-gcash", "gcash"], ["o-mari", "maribank"]].forEach(function (p) { if (ae !== $(p[0]) && op[p[1]] != null) $(p[0]).value = op[p[1]]; });
+  }
+
+  function updateTotal() {
+    var q = parseInt($("f-qty").value, 10) || 0, p = parseFloat($("f-price").value) || 0;
+    $("f-total").textContent = peso(q * p);
+  }
+
+  /* ---------- actions ---------- */
+  function ensureDb() {
+    if (!db) { say("sale-msg", "Saving is not available in this view.", true); return false; }
+    return true;
+  }
+
+  $("range-tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-range]"); if (!b) return;
+    range = b.dataset.range;
+    Array.prototype.forEach.call($("range-tabs").children, function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    render();
+  });
+
+  ["f-qty", "f-price"].forEach(function (id) { $(id).addEventListener("input", function () { if (id === "f-price") $(id).dataset.touched = "1"; updateTotal(); }); });
+
+  $("sale-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!ensureDb()) return;
+    var qty = parseInt($("f-qty").value, 10), price = parseFloat($("f-price").value);
+    if (!(qty >= 1)) return say("sale-msg", "Enter at least 1 can.", true);
+    if (!(price >= 0)) return say("sale-msg", "Enter the price per can.", true);
+    var ts = whenTs("f-date");
+    var method = document.querySelector('input[name="method"]:checked').value;
+    var cost = settings.cost != null ? Number(settings.cost) : 0;
+    var rec = { ts: ts, flavor: $("f-flavor").value, qty: qty, price: price, cost: cost, buyer: $("f-buyer").value.trim(), method: method, paid: method !== "Debt" };
+    var btn = $("sale-btn"); btn.disabled = true; say("sale-msg", "Saving…");
+    salesCol.add(rec).then(function () {
+      say("sale-msg", "Saved: " + qty + " × " + rec.flavor + " for " + peso(qty * price) + ".");
+      $("f-qty").value = 1; $("f-buyer").value = ""; updateTotal();
+      $("f-date").value = dtLocal(Date.now()); delete $("f-date").dataset.touched;
+    }).catch(function (err) {
+      say("sale-msg", "Could not save. " + (err && err.code === "invalid_argument" ? "You may only have view access to this page." : "Try again."), true);
+    }).then(function () { btn.disabled = false; });
+  });
+
+  $("restock-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!db) return say("restock-msg", "Saving is not available in this view.", true);
+    var qty = parseInt($("r-qty").value, 10), cost = parseFloat($("r-cost").value);
+    if (!(qty >= 1)) return say("restock-msg", "Enter how many cans came in.", true);
+    var total = parseFloat($("r-total").value);
+    var expense = total >= 0 ? total : (cost >= 0 ? Math.round(qty * cost * 100) / 100 : null);
+    var rec = { ts: whenTs("r-when"), flavor: $("r-flavor").value, qty: qty, cost: cost >= 0 ? cost : null, expense: expense, paidFrom: expense > 0 ? $("r-from").value : null, type: "restock" };
+    var btn = $("restock-btn"); btn.disabled = true; say("restock-msg", "Saving…");
+    restockCol.add(rec).then(function () {
+      say("restock-msg", "Added " + qty + " × " + rec.flavor + " to storage" + (expense > 0 ? " and logged " + peso(expense) + " from " + rec.paidFrom : "") + ".");
+      $("r-qty").value = ""; $("r-cost").value = ""; $("r-total").value = ""; $("r-total").dataset.touched = "";
+      $("r-when").value = dtLocal(Date.now()); delete $("r-when").dataset.touched;
+    }).catch(function () { say("restock-msg", "Could not save. Try again.", true); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  $("history").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b || !db) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    if (act === "edit") { editingSale = id; pendingDelete = null; renderHistory(inRange()); var ef = $("es-qty"); if (ef) ef.focus(); }
+    else if (act === "edit-cancel") { editingSale = null; renderHistory(inRange()); }
+    else if (act === "paid") { pendingPaid = id; renderHistory(inRange()); }
+    else if (act === "paid-no") { pendingPaid = null; renderHistory(inRange()); }
+    else if (act === "paid-as") { pendingPaid = null; salesCol.doc(id).update({ paid: true, paidAt: Date.now(), paidMethod: b.dataset.m }).catch(function () {}); }
+    else if (act === "del") { pendingDelete = id; render(); }
+    else if (act === "del-no") { pendingDelete = null; render(); }
+    else if (act === "del-yes") { pendingDelete = null; salesCol.doc(id).delete().catch(function () {}); }
+  });
+
+  function saveSettings(patch, msgId, okText) {
+    if (!db) return;
+    var next = Object.assign({}, settings, patch);
+    delete next.__id;
+    settingsDoc.set(next).then(function () { if (msgId) say(msgId, okText); }).catch(function () { if (msgId) say(msgId, "Could not save. Try again.", true); });
+  }
+  $("p-save").addEventListener("click", function () {
+    var p = parseFloat($("p-price").value), c = parseFloat($("p-cost").value);
+    var patch = {};
+    if (p >= 0) patch.price = p;
+    if (c >= 0) patch.cost = c;
+    if (!Object.keys(patch).length) return say("p-msg", "Enter a price or a cost first.", true);
+    saveSettings(patch, "p-msg", "Defaults saved.");
+    if (patch.price != null) { $("f-price").value = patch.price; delete $("f-price").dataset.touched; updateTotal(); }
+  });
+  $("o-save").addEventListener("click", function () {
+    var v = function (id) { var n = parseFloat($(id).value); return isNaN(n) ? 0 : n; };
+    saveSettings({ open: { cash: v("o-cash"), gcash: v("o-gcash"), maribank: v("o-mari") } }, "o-msg", "Starting amounts saved.");
+  });
+  $("n-add").addEventListener("click", addFlavor);
+  $("n-flavor").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addFlavor(); } });
+  function addFlavor() {
+    var name = $("n-flavor").value.trim(); if (!name) return;
+    var fl = Array.isArray(settings.flavors) ? settings.flavors.slice() : DEFAULT_FLAVORS.slice();
+    if (fl.some(function (f) { return f.toLowerCase() === name.toLowerCase(); })) return;
+    fl.push(name); $("n-flavor").value = "";
+    saveSettings({ flavors: fl });
+  }
+  $("flavor-chips").addEventListener("click", function (e) {
+    var b = e.target.closest('button[data-act="rm-flavor"]'); if (!b) return;
+    var fl = (Array.isArray(settings.flavors) ? settings.flavors : DEFAULT_FLAVORS).slice();
+    fl.splice(parseInt(b.dataset.i, 10), 1);
+    saveSettings({ flavors: fl });
+  });
+
+  $("export-btn").addEventListener("click", function () {
+    claude.use("downloads").then(function (dl) {
+      if (!dl) { say("sale-msg", "Export is not available in this view.", true); return; }
+      var q = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
+      var rows = [["Date", "Flavor", "Cans", "Price per can", "Cost per can", "Total", "Profit", "Buyer", "Payment", "Paid"].join(",")];
+      sales.slice().sort(function (a, b) { return a.ts - b.ts; }).forEach(function (s) {
+        rows.push([ymd(s.ts), q(s.flavor), s.qty, s.price, s.cost || 0, s.qty * s.price, s.qty * (s.price - (s.cost || 0)), q(s.buyer), q(s.method), s.paid === false ? "No" : "Yes"].join(","));
+      });
+      return dl.save({ filename: "monster-sales.csv", data: rows.join("\n") }).catch(function () {});
+    });
+  });
+
+  /* ---------- data ---------- */
+  function showLoadingNote(on) {
+    var b = $("banner");
+    if (on) { b.textContent = "Your sales data has not loaded yet. It may be out of date until the connection comes back."; b.hidden = false; }
+    else if (loaded.sales && loaded.restocks && loaded.refmoves && loaded.settings) b.hidden = true;
+  }
+  function docsOf(snap) { return snap.docs.map(function (d) { var x = Object.assign({}, d.data()); x.id = d.id; return x; }); }
+
+  $("f-date").value = dtLocal(Date.now());
+  $("r-when").value = dtLocal(Date.now());
+  ["f-date", "r-when"].forEach(function (id) { $(id).addEventListener("input", function () { this.dataset.touched = "1"; }); });
+  function autoTotal() {
+    var t = $("r-total"); if (t.dataset.touched) return;
+    var q = parseInt($("r-qty").value, 10), c = parseFloat($("r-cost").value);
+    t.value = (q >= 1 && c >= 0) ? String(Math.round(q * c * 100) / 100) : "";
+  }
+  $("r-qty").addEventListener("input", autoTotal);
+  $("r-cost").addEventListener("input", autoTotal);
+  $("r-total").addEventListener("input", function () { this.dataset.touched = this.value ? "1" : ""; });
+  $("today-label").textContent = new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  render();
+
+  claude.use("db").then(function (d) {
+    if (!d) { $("banner").textContent = "Saving is not available in this view. Open the page in Claude to record sales."; $("banner").hidden = false; $("sale-btn").disabled = true; return; }
+    db = d;
+    salesCol = db.collection("sales"); restockCol = db.collection("restocks"); refCol = db.collection("refmoves"); settingsDoc = db.doc("settings/main"); octBatchCol = db.collection("oct_batches"); octCfgDoc = db.doc("oct/config"); moneyCol = db.collection("money");
+    var timer = setTimeout(function () { showLoadingNote(true); }, 10000);
+    function done(k) { loaded[k] = true; if (loaded.sales && loaded.restocks && loaded.refmoves && loaded.settings) { clearTimeout(timer); showLoadingNote(false); } }
+    var onErr = function (e) { clearTimeout(timer); $("banner").textContent = "Could not read your data (" + (e && e.code ? e.code : "error") + ")."; $("banner").hidden = false; };
+    salesCol.orderBy("ts", "desc").limit(1000).onSnapshot(function (s) { sales = docsOf(s); done("sales"); render(); }, onErr);
+    restockCol.orderBy("ts", "desc").limit(1000).onSnapshot(function (s) { restocks = docsOf(s); done("restocks"); render(); }, onErr);
+    refCol.orderBy("ts", "desc").limit(1000).onSnapshot(function (s) { refmoves = docsOf(s); done("refmoves"); render(); }, onErr);
+    octBatchCol.orderBy("order", "asc").limit(100).onSnapshot(function (s) { octBatches = docsOf(s); render(); }, onErr);
+    octCfgDoc.onSnapshot(function (s) { octCfg = s.exists ? Object.assign({}, s.data()) : {}; render(); }, onErr);
+    moneyCol.orderBy("ts", "desc").limit(1000).onSnapshot(function (s) { moneyEntries = docsOf(s); render(); }, onErr);
+    settingsDoc.onSnapshot(function (s) { settings = s.exists ? Object.assign({}, s.data()) : {}; done("settings"); render(); }, onErr);
+  });
+})();
+</script>

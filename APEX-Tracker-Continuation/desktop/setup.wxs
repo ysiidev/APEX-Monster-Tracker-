@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Product Id="*" Name="APEX Monster Sales Tracker" Language="1033" Version="1.0.0" Manufacturer="APEX Sports Center" UpgradeCode="742F639F-571E-4EE0-A2C1-9519C9569E96">
+<Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" />
+<Media Id="1" Cabinet="data.cab" EmbedCab="yes" />
+<Directory Id="TARGETDIR" Name="SourceDir">
+  <Directory Id="LocalAppDataFolder"><Directory Id="ProgramsDir" Name="Programs"><Directory Id="INSTALLDIR" Name="APEX Monster Sales Tracker">
+    <Component Id="Main" Guid="9E28B5AA-7D57-496D-A94A-92D14DBAAB09"><File Id="AppExe" Source="app/Monster Sales Tracker.exe" KeyPath="yes" />
+      <File Id="CoreDll" Source="app/Microsoft.Web.WebView2.Core.dll" /><File Id="FormsDll" Source="app/Microsoft.Web.WebView2.WinForms.dll" /><File Id="LoaderDll" Source="app/WebView2Loader.dll" /><File Id="AppHtml" Source="app/index.html" /><File Id="Bridge" Source="app/bridge.js" /><File Id="Snapshot" Source="app/snapshot.json" />
+    </Component>
+  </Directory></Directory></Directory>
+  <Directory Id="ProgramMenuFolder"><Directory Id="AppMenu" Name="APEX Monster Sales Tracker">
+    <Component Id="Shortcuts" Guid="42E60659-6E32-47AF-BAC6-8CE33074DB72">
+      <Shortcut Id="AppShortcut" Name="Monster Sales Tracker" Target="[INSTALLDIR]Monster Sales Tracker.exe" WorkingDirectory="INSTALLDIR" />
+      <RemoveFolder Id="RemoveAppMenu" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\APEX\MonsterTracker" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+  </Directory></Directory>
+</Directory>
+<Feature Id="MainFeature" Title="Monster Sales Tracker" Level="1"><ComponentRef Id="Main"/><ComponentRef Id="Shortcuts"/></Feature>
+</Product></Wix>
