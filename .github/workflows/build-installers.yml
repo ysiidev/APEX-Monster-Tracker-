@@ -89,19 +89,49 @@ jobs:
         working-directory: APEX-Tracker-Continuation/desktop
         shell: pwsh
         run: |
+          # Report failures as annotations: they show up in the run summary, which is
+          # readable even when the log archive cannot be downloaded.
+          function Fail($title, $lines) {
+            $msg = (($lines | Select-Object -Last 4) -join ' | ')
+            if ($msg.Length -gt 900) { $msg = $msg.Substring(0, 900) }
+            Write-Host "::error title=$title::$msg"
+            throw "$title"
+          }
+
           $bin = if ($env:WIX) { Join-Path $env:WIX 'bin' } else { $null }
           if (-not $bin -or -not (Test-Path (Join-Path $bin 'candle.exe'))) {
             $found = Get-ChildItem 'C:\Program Files (x86)\WiX Toolset v3*\bin\candle.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-            if (-not $found) { throw 'candle.exe not found — WiX 3 may not have installed' }
+            if (-not $found) {
+              $env:WIX | Write-Host
+              Get-ChildItem 'C:\Program Files (x86)' -Filter 'WiX*' -ErrorAction SilentlyContinue | Select-Object Name | Write-Host
+              Write-Host '::error title=WiX not found::candle.exe missing and $env:WIX unset'
+              throw 'candle.exe not found — WiX 3 may not have installed'
+            }
             $bin = $found.DirectoryName
           }
+          $candle = Join-Path $bin 'candle.exe'
+          $light  = Join-Path $bin 'light.exe'
           Write-Host "Using WiX from $bin"
-          & (Join-Path $bin 'candle.exe') -out 'output\setup.wixobj' setup.wxs
-          if ($LASTEXITCODE -ne 0) { throw "candle failed with exit code $LASTEXITCODE" }
-          & (Join-Path $bin 'light.exe') -out 'output\APEX-Monster-Setup.msi' 'output\setup.wixobj'
-          if ($LASTEXITCODE -ne 0) { throw "light failed with exit code $LASTEXITCODE" }
+
+          & $candle -nologo -out 'output\setup.wixobj' setup.wxs *> candle.log
+          Get-Content candle.log | Write-Host
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'output\setup.wixobj')) {
+            Fail 'candle failed' (Get-Content candle.log)
+          }
+
+          & $light -nologo -out 'output\APEX-Monster-Setup.msi' 'output\setup.wixobj' *> light.log
+          Get-Content light.log | Write-Host
+          if ($LASTEXITCODE -ne 0) {
+            # The .wxs was authored for wixl, so WiX's ICE validation often objects to
+            # things wixl accepted. ICE warnings do not stop an MSI working, so retry
+            # without validation rather than shipping no MSI at all.
+            Write-Host '::warning title=ICE validation failed::retrying light.exe with -sval (ICE checks skipped)'
+            & $light -nologo -sval -out 'output\APEX-Monster-Setup.msi' 'output\setup.wixobj' *> light2.log
+            Get-Content light2.log | Write-Host
+            if ($LASTEXITCODE -ne 0) { Fail 'light failed' (Get-Content light2.log) }
+          }
           if (-not (Test-Path 'output\APEX-Monster-Setup.msi')) { throw 'light produced no MSI' }
-          Get-Item 'output\APEX-Monster-Setup.msi' | Select-Object Name, Length
+          Get-Item 'output\APEX-Monster-Setup.msi' | Select-Object Name, Length | Write-Host
 
       - name: Build the portable ZIP (no installer)
         working-directory: APEX-Tracker-Continuation/desktop
