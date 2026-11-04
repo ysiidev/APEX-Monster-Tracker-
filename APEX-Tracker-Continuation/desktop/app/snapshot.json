@@ -11,7 +11,13 @@
     {"id":"bwbtc0gp6gzms0rohvp1","buyer":"Rebecca","flavor":"Ultra Violet (Purple)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793494020000},
     {"id":"dv0uejc364fotmleibr9","buyer":"Dave","flavor":"Ultra White (White)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793687664673},
     {"id":"b5bgb2eobkmizwzx0n3l","buyer":"Jhon Carlo","flavor":"Ultra White (White)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793687675657},
-    {"id":"tdvmu6ck2wzqgyx83tk3","buyer":"Sherwin","flavor":"Mango Loco (Blue)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793690928064}
+    {"id":"tdvmu6ck2wzqgyx83tk3","buyer":"Sherwin","flavor":"Mango Loco (Blue)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793690928064},
+    {"id":"nux5boya8e3yb2k94phs","buyer":"Lou","flavor":"Ultra White (White)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793691672000},
+    {"id":"snhu96575y82ul0njoc8","buyer":"Jester","flavor":"Original Green (Black)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793699550000},
+    {"id":"u57a6w5y1mp7a738o9t1","buyer":"Rebecca","flavor":"Ultra Paradise (Green)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793754761000},
+    {"id":"cg6gv1i8aqxekfxt0p2o","buyer":"Ash","flavor":"Ultra Violet (Purple)","qty":1,"price":95,"cost":54.17,"method":"GCash","paid":true,"ts":1793763307000},
+    {"id":"kgsoyf7h8yg9qg0mtpt8","buyer":"JV","flavor":"Original Green (Black)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793782099000},
+    {"id":"nu397cfkatb5lhzstkai","buyer":"JV","flavor":"Ultra White (White)","qty":1,"price":95,"cost":54.17,"method":"Cash","paid":true,"ts":1793782323000}
   ],
   "restocks": [
     {"id":"98xs75f5pq9g7b8w1mit","flavor":"Pipeline Punch (Pink)","qty":29,"cost":54.5,"expense":0,"ts":1793540420600},
