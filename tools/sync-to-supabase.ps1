@@ -327,8 +327,13 @@ foreach ($c in $Collections) {
 
 $Rows = Get-Rows $Data
 
+# Resolve the key before anything can short-circuit. Otherwise a missing or undecryptable
+# key on an unchanged dataset would exit 0, and a scheduled task would report success
+# every night while nothing was actually being synced.
+$key = Get-StoredKey
+
 if ($Verify) {
-    Initialize-Api (Get-StoredKey)
+    Initialize-Api $key
     $ok = Invoke-Verify $Rows
     if ($ok) { exit 0 } else { exit 2 }
 }
@@ -346,7 +351,7 @@ if (Test-Path $StateFile) {
 }
 
 try {
-    Initialize-Api (Get-StoredKey)
+    Initialize-Api $key
     Write-Log "Pushing $DataFile to $SupabaseUrl"
     $summary = Invoke-Push $Data $Rows
     Write-Log "Pushed: $summary"
