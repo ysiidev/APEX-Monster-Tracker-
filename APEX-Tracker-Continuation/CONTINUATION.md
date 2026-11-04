@@ -73,6 +73,13 @@ still writes only to its local `data.json`.
   Sync tooling is `tools/supabase-sync.mjs` (`push`, `pull`, `snapshot`, `verify`, `--dry-run`,
   `--prune`, `--force`); `tools/sync-selftest.mjs` round-trips a data file offline and must keep
   passing. Full details, limits and the security model: `supabase/README.md`.
+- Automatic sync without Node: `tools/sync-to-supabase.ps1` (`-SetKey`, `-Verify`, plain push) plus
+  `tools/install-sync-task.ps1`, which registers a Task Scheduler job running it silently at logon
+  and daily at 21:00. The key is stored DPAPI-encrypted at
+  `%LOCALAPPDATA%\ApexMonsterTracker\supabase.key` and locked with icacls — never in the repo.
+  Setup and troubleshooting: `supabase/SYNC-SETUP.md`. Conflict rule: the PC wins; no deletes
+  unless `-Prune`. **The scripts have never been executed** (no PowerShell in the build
+  environment); `-Verify` only reads and is the first thing to run on a real PC.
 - Caveat: the schema, seed and views were applied and queried through the Supabase API, but the
   `push`/`pull`/`snapshot` HTTP paths could not be exercised from this sandbox (no route to
   supabase.co). Their data mapping is covered by the offline self-test; the network calls are not.
