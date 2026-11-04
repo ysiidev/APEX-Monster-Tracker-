@@ -49,6 +49,17 @@ Using jsdom and a mocked WebView message host, tests checked that the snapshot l
 4. Verify how starting balances and the October figures should be represented with the user. Consider clearer language for October cash vs. profit and add robust backup/import validation.
 5. For distribution, consider code signing, prerequisite detection/installation, automatic backup strategy, and an upgrade path before claiming production readiness.
 
+## Building the installers
+
+The installers are now built in CI: `.github/workflows/build-installers.yml` runs on a Windows
+runner when a `v`-tag is pushed (or manually via Actions), compiles `Program.cs` with the .NET
+Framework `csc`, runs NSIS and WiX 3, produces the two installers plus a portable ZIP, writes
+SHA256 checksums and attaches all of it to the release. The version is taken from the tag and
+stamped into `setup.nsi` / `setup.wxs` during the build, so the files in the repo keep saying
+`1.0.0` and a tagless local build still works. `RELEASE.md` holds the release steps and the
+pre-release test checklist. **The pipeline proves the installers assemble; it does not prove the
+app runs.** A Windows test is still required before announcing a release.
+
 ## Rebuilding on Linux
 
 These commands describe the environment used for this package. From the `desktop` directory, install Mono's C# compiler and WinForms/System.Web.Extensions dependencies, NSIS (`makensis`), and `wixl`/msitools. The needed WebView2 DLLs are already under `app/`.

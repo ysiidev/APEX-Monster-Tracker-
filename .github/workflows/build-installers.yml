@@ -1,1 +1,154 @@
+name: Build installers
 
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and attach to, e.g. v1.0.1'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the version
+        id: v
+        shell: pwsh
+        run: |
+          $ref = '${{ github.event.inputs.tag || github.ref_name }}'
+          $ver = $ref -replace '^v', ''
+          if ($ver -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Version must look like v1.2.3 — got '$ref'. Delete the release and create it with a proper v-tag."
+          }
+          "tag=$ref"      >> $env:GITHUB_OUTPUT
+          "version=$ver"  >> $env:GITHUB_OUTPUT
+          Write-Host "Building $ref (version $ver)"
+
+      - name: Check the workflow file is not empty
+        shell: pwsh
+        run: |
+          if ((Get-Item '.github/workflows/build-installers.yml').Length -lt 200) {
+            throw 'This workflow file is empty or truncated — the paste did not land.'
+          }
+
+      - name: Stamp the version into both installers
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: pwsh
+        run: |
+          $ver = '${{ steps.v.outputs.version }}'
+          foreach ($file in 'setup.nsi', 'setup.wxs') {
+            $text = [IO.File]::ReadAllText($file)
+            $text = $text -replace 'Version" "1\.0\.0"', ('Version" "' + $ver + '"')   # NSIS: "DisplayVersion" "1.0.0"
+            $text = $text -replace 'Version="1\.0\.0"',        ('Version="' + $ver + '"')  # WiX:   Version="1.0.0"
+            [IO.File]::WriteAllText($file, $text)
+          }
+          # fail loudly rather than ship a mislabelled build
+          foreach ($file in 'setup.nsi', 'setup.wxs') {
+            $hit = Select-String -Path $file -Pattern ([regex]::Escape($ver))
+            if (-not $hit) { throw "Version $ver was not stamped into $file" }
+            $hit | ForEach-Object { Write-Host ($_.Filename + ': ' + $_.Line.Trim()) }
+          }
+
+      - name: Compile the tracker
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: cmd
+        run: >
+          "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          -target:winexe -out:"app\Monster Sales Tracker.exe"
+          -r:System.Windows.Forms.dll -r:System.Drawing.dll -r:System.Web.Extensions.dll
+          -r:app\Microsoft.Web.WebView2.Core.dll -r:app\Microsoft.Web.WebView2.WinForms.dll
+          Program.cs
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Build the EXE installer
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force output | Out-Null
+          $makensis = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (-not (Test-Path $makensis)) { throw "makensis not found at $makensis" }
+          & $makensis setup.nsi
+          if ($LASTEXITCODE -ne 0) { throw "makensis failed with exit code $LASTEXITCODE" }
+          if (-not (Test-Path 'output\APEX-Monster-Setup.exe')) { throw 'makensis produced no installer' }
+          Get-Item 'output\APEX-Monster-Setup.exe' | Select-Object Name, Length
+
+      - name: Install WiX 3
+        run: choco install wixtoolset -y --no-progress
+
+      - name: Build the MSI
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: pwsh
+        run: |
+          $bin = if ($env:WIX) { Join-Path $env:WIX 'bin' } else { $null }
+          if (-not $bin -or -not (Test-Path (Join-Path $bin 'candle.exe'))) {
+            $found = Get-ChildItem 'C:\Program Files (x86)\WiX Toolset v3*\bin\candle.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $found) { throw 'candle.exe not found — WiX 3 may not have installed' }
+            $bin = $found.DirectoryName
+          }
+          Write-Host "Using WiX from $bin"
+          & (Join-Path $bin 'candle.exe') -out 'output\setup.wixobj' setup.wxs
+          if ($LASTEXITCODE -ne 0) { throw "candle failed with exit code $LASTEXITCODE" }
+          & (Join-Path $bin 'light.exe') -out 'output\APEX-Monster-Setup.msi' 'output\setup.wixobj'
+          if ($LASTEXITCODE -ne 0) { throw "light failed with exit code $LASTEXITCODE" }
+          if (-not (Test-Path 'output\APEX-Monster-Setup.msi')) { throw 'light produced no MSI' }
+          Get-Item 'output\APEX-Monster-Setup.msi' | Select-Object Name, Length
+
+      - name: Build the portable ZIP (no installer)
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: pwsh
+        run: |
+          Compress-Archive -Path app\* -DestinationPath 'output\APEX-Monster-Portable.zip' -Force
+          Get-Item 'output\APEX-Monster-Portable.zip' | Select-Object Name, Length
+
+      - name: Checksums
+        working-directory: APEX-Tracker-Continuation/desktop/output
+        shell: pwsh
+        run: |
+          Get-ChildItem APEX-Monster-Setup.exe, APEX-Monster-Setup.msi, APEX-Monster-Portable.zip |
+            ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+
+      - name: Attach everything to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: APEX Monster Sales Tracker ${{ steps.v.outputs.version }}
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            APEX-Tracker-Continuation/desktop/output/APEX-Monster-Setup.exe
+            APEX-Tracker-Continuation/desktop/output/APEX-Monster-Setup.msi
+            APEX-Tracker-Continuation/desktop/output/APEX-Monster-Portable.zip
+            APEX-Tracker-Continuation/desktop/output/SHA256SUMS.txt
+          body: |
+            **Windows desktop build ${{ steps.v.outputs.version }}**
+
+            > This build has not been opened on a Windows machine by its author.
+            > Test it before relying on it, and keep your own backup of `data.json`.
+
+            Requirements: 64-bit Windows, Microsoft Edge WebView2 Runtime, .NET Framework 4.7.2 or later.
+            Neither runtime is bundled — the app tells you if one is missing.
+
+            **Choose one:**
+            - `APEX-Monster-Setup.exe` — installer (NSIS). Adds Start menu and desktop shortcuts.
+            - `APEX-Monster-Setup.msi` — installer (WiX). Start menu shortcut only.
+            - `APEX-Monster-Portable.zip` — no install. Unzip anywhere, run `Monster Sales Tracker.exe`.
+
+            Do not install both the .exe and the .msi.
+
+            Your data lives in `%LOCALAPPDATA%\ApexMonsterTracker\data.json` and survives uninstall.
+            Use **Back up all data** inside the app to keep a copy elsewhere.
+
+            The downloads are unsigned, so Windows SmartScreen will warn. Check each file
+            against `SHA256SUMS.txt` before running it.

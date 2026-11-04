@@ -115,7 +115,14 @@ including the security model and the honest caveats: [`supabase/README.md`](supa
 Requires 64-bit Windows, Microsoft Edge **WebView2 Runtime** and **.NET Framework 4.7.2+**.
 Neither runtime is bundled and both binaries are unsigned, so SmartScreen will warn.
 
-Rebuilding from Linux (the toolchain used for this package):
+**Installers are built by GitHub, not by hand.** Push a `v`-tag and
+[`build-installers.yml`](.github/workflows/build-installers.yml) compiles the app on a Windows
+runner, stamps the version from the tag, and attaches `APEX-Monster-Setup.exe`,
+`APEX-Monster-Setup.msi`, `APEX-Monster-Portable.zip` and `SHA256SUMS.txt` to the release. The full
+process, the pre-release test checklist and the troubleshooting table are in
+[`RELEASE.md`](RELEASE.md).
+
+Rebuilding locally instead (this is the toolchain the original package was built with):
 
 ```sh
 cd APEX-Tracker-Continuation/desktop
@@ -131,6 +138,15 @@ wixl -o output/APEX-Monster-Setup.msi setup.wxs
 Installing both the EXE and the MSI side by side is not supported — choose one. Uninstalling
 does not delete `%LOCALAPPDATA%\ApexMonsterTracker`; use **Back up all data** before relying on
 that folder alone.
+
+## Releases
+
+Latest: see the **Releases** page. The pipeline is tag-driven and the version in Add/Remove Programs
+comes from the tag, so `v1.0.2` produces a build that reports 1.0.2 everywhere.
+
+```sh
+git tag v1.0.2 && git push origin v1.0.2     # or draft a release in the GitHub UI
+```
 
 ## Known issues
 
