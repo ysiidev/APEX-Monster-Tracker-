@@ -1,0 +1,61 @@
+/* Approved motion study: shared by every tracker module. No decorative emoji,
+   no sample data, and no changes to the displayed financial values. */
+:root { --accent: #b4e760; --motion-ease: cubic-bezier(.16, 1, .3, 1); }
+#staff-login { background: radial-gradient(ellipse at 50% 30%, #a2d35609, transparent 58%), #090b09; padding-top: 48px; }
+#staff-login .staff-card { position: relative; max-width: 480px; min-height: 0; padding: 38px 44px 32px; background: linear-gradient(150deg, #171b15, #111410); border-color: #343d2e; border-radius: 8px; box-shadow: 0 28px 90px #0005; }
+#staff-login .staff-card::before { content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, #b4e78b, transparent); }
+#staff-login .staff-brand h1 { font-size: 22px; letter-spacing: 2.5px; font-weight: 500; }
+#staff-login .staff-brand p { margin: 5px 0 30px; font-size: 9px; letter-spacing: 4px; }
+.apex-mark { width: 64px; height: 64px; display: block; margin: 0 auto 18px; color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.logo .apex-mark { width: 40px; height: 40px; margin: 0; }
+.logo { border: none; }
+#staff-login h2 { border-top: 1px solid #2c3329; padding-top: 24px; margin-bottom: 24px; font: 500 16px system-ui, sans-serif; text-align: left; letter-spacing: 0; }
+#staff-login label { color: #a9b29f; font-size: 10px; letter-spacing: 2px; }
+#staff-login input { height: 52px; background: #0c100b; border-color: #343c2e; border-radius: 4px; font: 14px system-ui, sans-serif; letter-spacing: 0; }
+#staff-login input:focus { border-color: #8eb653; outline: none; box-shadow: 0 0 0 3px #b4e76018; }
+#staff-login #cloud-login { background: var(--accent); color: #15200c; border: 1px solid #d0f498; border-radius: 4px; height: 52px; font: 700 11px system-ui, sans-serif; letter-spacing: 2px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; }
+#cloud-login .signin-arrow { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+#staff-login #cloud-login:hover { background: #c5f17b; }
+#staff-login #cloud-login:disabled .signin-arrow { opacity: .35; }
+#staff-login #cloud-forgot { font-size: 12px; }
+#staff-login .staff-setup { font-size: 10px; }
+@media (prefers-reduced-motion: no-preference) {
+  #staff-login .staff-card { animation: apex-enter .7s var(--motion-ease) both; }
+  #staff-login .staff-card::before { animation: apex-rule .85s .25s both; }
+  .apex-mark path { stroke-dasharray: 230; animation: apex-draw 1.3s .18s ease both; }
+  .apex-mark .cross { animation-delay: .65s; }
+  #staff-login form > * { animation: apex-rise .65s var(--motion-ease) both; }
+  #staff-login form > :nth-child(2), #staff-login form > :nth-child(3) { animation-delay: .15s; }
+  #staff-login form > :nth-child(4), #staff-login form > :nth-child(5) { animation-delay: .23s; }
+  #staff-login form > :nth-child(n+6) { animation-delay: .3s; }
+  .staff-authenticated .wrap { animation: apex-enter .55s var(--motion-ease) both; }
+  .view:not([hidden]) { animation: apex-rise .45s var(--motion-ease) both; }
+  .view:not([hidden]) .stat, .view:not([hidden]) .hstat, .view:not([hidden]) .panel, .view:not([hidden]) .mod { animation: apex-rise .55s var(--motion-ease) both; }
+  .stat:nth-child(2), .hstat:nth-child(2), .mod:nth-child(2) { animation-delay: .06s !important; }
+  .stat:nth-child(3), .hstat:nth-child(3), .mod:nth-child(3) { animation-delay: .12s !important; }
+  .stat:nth-child(n+4), .mod:nth-child(n+4) { animation-delay: .18s !important; }
+  .view:not([hidden]) .fill, .view:not([hidden]) .hfill { transform-origin: left; animation: apex-bar .7s var(--motion-ease) both; }
+  .view:not([hidden]) .mod-icon svg path { stroke-dasharray: 160; animation: apex-draw 1s .15s ease both; }
+  .sale, .stock-row, .bar-row, .rh, .tbl tbody tr { animation: apex-rise .3s var(--motion-ease) both; }
+  button, input, .mod, .tabs button, .vtabs button { transition: border-color .2s, background-color .2s, color .2s, box-shadow .2s, transform .2s; }
+  #cloud-login .signin-arrow { transition: transform .2s; }
+  #staff-login #cloud-login:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 22px #b4e76018; }
+  #staff-login #cloud-login:hover .signin-arrow { transform: translateX(4px); }
+  #staff-login #cloud-login:active { transform: translateY(0); }
+  .mod:hover .mod-icon { transform: translateY(-2px); filter: none; }
+  details[open] > :not(summary) { animation: apex-rise .25s var(--motion-ease) both; }
+}
+@keyframes apex-enter { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes apex-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes apex-rule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes apex-draw { from { stroke-dashoffset: 230; } to { stroke-dashoffset: 0; } }
+@keyframes apex-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .apex-mark path, .mod-icon svg path { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; }
+}
+@media (max-width: 520px) {
+  #staff-login { padding: 24px 16px; }
+  #staff-login .staff-card { padding: 32px 26px 26px; }
+  #staff-login .staff-brand h1 { font-size: 20px; letter-spacing: 1.8px; }
+}

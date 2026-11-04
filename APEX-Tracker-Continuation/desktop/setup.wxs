@@ -7,7 +7,7 @@
 <Directory Id="TARGETDIR" Name="SourceDir">
   <Directory Id="LocalAppDataFolder"><Directory Id="ProgramsDir" Name="Programs"><Directory Id="INSTALLDIR" Name="APEX Monster Sales Tracker">
     <Component Id="Main" Guid="9E28B5AA-7D57-496D-A94A-92D14DBAAB09"><File Id="AppExe" Source="app/Monster Sales Tracker.exe" KeyPath="yes" />
-      <File Id="CoreDll" Source="app/Microsoft.Web.WebView2.Core.dll" /><File Id="FormsDll" Source="app/Microsoft.Web.WebView2.WinForms.dll" /><File Id="LoaderDll" Source="app/WebView2Loader.dll" /><File Id="AppHtml" Source="app/index.html" /><File Id="Bridge" Source="app/bridge.js" /><File Id="Cloud" Source="app/cloud.js" /><File Id="StaffLoginCss" Source="app/staff-login.css" /><File Id="Snapshot" Source="app/snapshot.json" />
+      <File Id="CoreDll" Source="app/Microsoft.Web.WebView2.Core.dll" /><File Id="FormsDll" Source="app/Microsoft.Web.WebView2.WinForms.dll" /><File Id="LoaderDll" Source="app/WebView2Loader.dll" /><File Id="AppHtml" Source="app/index.html" /><File Id="Bridge" Source="app/bridge.js" /><File Id="Cloud" Source="app/cloud.js" /><File Id="StaffLoginCss" Source="app/staff-login.css" /><File Id="MotionCss" Source="app/motion.css" /><File Id="MotionJs" Source="app/motion.js" /><File Id="Snapshot" Source="app/snapshot.json" />
     </Component>
   </Directory></Directory></Directory>
   <Directory Id="ProgramMenuFolder"><Directory Id="AppMenu" Name="APEX Monster Sales Tracker">

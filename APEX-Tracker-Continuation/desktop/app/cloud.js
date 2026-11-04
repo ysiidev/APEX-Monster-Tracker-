@@ -48,10 +48,10 @@
   document.addEventListener('DOMContentLoaded', function () {
     var panel = document.createElement('section'); panel.id = 'staff-login';
     panel.setAttribute('aria-labelledby', 'portal-title');
-    panel.innerHTML = '<div class="staff-card"><header class="staff-brand"><h1 id="portal-title">APEX Monster Tracker</h1><p>STAFF PORTAL</p></header>' +
+    panel.innerHTML = '<div class="staff-card"><header class="staff-brand"><svg class="apex-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 51 32 10 54 51M20 51 32 29 44 51"/><path class="cross" d="M18 42H46"/></svg><h1 id="portal-title">APEX Monster Tracker</h1><p>STAFF PORTAL</p></header>' +
       '<form id="cloud-password-controls"><h2>SIGN IN</h2><label for="cloud-email">USERNAME</label><input id="cloud-email" type="text" autocomplete="username" placeholder="admin" aria-label="Admin username" required>' +
       '<label for="cloud-password">PASSWORD</label><input id="cloud-password" type="password" autocomplete="current-password" placeholder="Password" required>' +
-      '<p id="login-message" role="status" aria-live="polite"></p><button id="cloud-login" type="submit">SIGN IN</button>' +
+      '<p id="login-message" role="status" aria-live="polite"></p><button id="cloud-login" type="submit"><span>SIGN IN</span><svg class="signin-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg></button>' +
       '<button id="cloud-forgot" type="button">Forgot password?</button>' +
       '<details class="staff-setup"><summary>First-time account setup</summary><p>Use admin as your username and choose a tracker password. Confirm the account using your owner email before signing in.</p><button id="cloud-register" type="button">Create tracker account</button></details></form></div>';
     document.body.appendChild(panel);

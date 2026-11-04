@@ -229,14 +229,16 @@ details summary { transition: color 0.15s ease; }
 .stock-row.total.second { border-top: 0; margin-top: 0; }
 @media (prefers-reduced-motion: no-preference) { .fill { transition: width 0.3s ease; } }
 </style>
+<link rel="stylesheet" href="motion.css">
+<script src="motion.js"></script>
 
-<div class="wrap"><div class="panel" style="padding:10px 14px"><span class="label">Offline desktop edition</span> &nbsp; <button class="btn ghost small" id="backup-data" type="button">Back up all data</button> <button class="btn ghost small" id="restore-data" type="button">Restore backup</button> <span class="fine" id="backup-status" role="status"></span></div>
+<div class="wrap"><div class="panel" style="padding:10px 14px"><span class="label">Cloud-connected desktop edition</span> &nbsp; <button class="btn ghost small" id="backup-data" type="button">Back up all data</button> <button class="btn ghost small" id="restore-data" type="button">Restore backup</button> <span class="fine" id="backup-status" role="status"></span></div>
   <div class="view home" id="view-home">
     <div class="home-top">
       <div class="home-brand">
-        <div class="logo" aria-hidden="true">MS</div>
+        <div class="logo" aria-hidden="true"><svg class="apex-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 51 32 10 54 51M20 51 32 29 44 51"/><path class="cross" d="M18 42H46"/></svg></div>
         <div>
-          <div class="home-title">Monster Sales</div>
+          <div class="home-title">APEX Monster Tracker</div>
           <div class="home-sub">Sales and stock system</div>
         </div>
       </div>

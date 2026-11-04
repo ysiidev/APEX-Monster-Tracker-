@@ -140,6 +140,19 @@ jobs:
           Compress-Archive -Path app\* -DestinationPath 'output\APEX-Monster-Portable.zip' -Force
           Get-Item 'output\APEX-Monster-Portable.zip' | Select-Object Name, Length
 
+      - name: Verify portable animation assets
+        working-directory: APEX-Tracker-Continuation/desktop
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $PWD 'output\APEX-Monster-Portable.zip'))
+          try {
+            foreach ($asset in 'cloud.js', 'staff-login.css', 'motion.js', 'motion.css', 'index.html', 'bridge.js') {
+              if (-not ($zip.Entries | Where-Object { $_.Name -eq $asset })) { throw "Missing packaged asset: $asset" }
+              Write-Host "Verified packaged asset: $asset"
+            }
+          } finally { $zip.Dispose() }
+
       - name: Checksums
         working-directory: APEX-Tracker-Continuation/desktop/output
         shell: pwsh
@@ -165,6 +178,8 @@ jobs:
           body: |
             **Windows desktop build ${{ steps.v.outputs.version }}**
 
+            Approved SVG motion design across login and all tracker modules, with reduced-motion support.
+            Animated cards, chart bars, module icons and exact-value update transitions.
             Updated APEX Monster Tracker staff login and owner-only Supabase cloud saves.
             Includes the corrected single-column login layout and admin username support.
             Live data uses tracker_live_state; legacy reporting tables remain separate.
