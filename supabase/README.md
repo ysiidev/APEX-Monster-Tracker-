@@ -51,6 +51,13 @@ batches, 2 documents, 1 snapshot archive.
 - Data is personal financial information. Supabase encrypts at rest and in transit, but the
   service role key is a full-database credential: treat it like the data file itself.
 
+## Automatic sync (no Node needed)
+
+`tools/sync-to-supabase.ps1` does the same push in plain PowerShell, so it works on a Windows PC
+with nothing installed, and `tools/install-sync-task.ps1` registers a Task Scheduler job that runs
+it silently at logon and daily. Step-by-step, including key storage (encrypted with Windows DPAPI,
+never in the repo) and troubleshooting: **[SYNC-SETUP.md](SYNC-SETUP.md)**.
+
 ## Sync commands
 
 `tools/supabase-sync.mjs` is dependency-free (Node 18+, uses `fetch`). Run from the repo root.
@@ -108,3 +115,5 @@ select * from v_sales_readable where buyer = 'JV';
   sandbox cannot reach supabase.co). The schema, seed and views were applied and queried
   through the Supabase API; the `push`/`pull`/`snapshot` HTTP paths are unit-tested only
   through their offline mapping layer.
+- The PowerShell scripts (`sync-to-supabase.ps1`, `install-sync-task.ps1`) could not be run at
+  all — this environment has no PowerShell. Start with `-Verify`, which only reads.

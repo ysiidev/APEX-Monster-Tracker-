@@ -66,6 +66,7 @@ TZ=Asia/Manila node tests/test-dailylog.js   # Daily log: every named sale once,
 node preview/check.js                        # preview server renders the same log
 node preview/check-backup.js                 # Back up / Restore rolls back exactly
 cd ../.. && node tools/sync-selftest.mjs     # Supabase mapping round-trips a data file
+powershell -ExecutionPolicy Bypass -File tools/test/run-sync-test.ps1   # PowerShell sync, against a mock server
 ```
 
 All of the above pass as of 2026-11-04. They exercise the HTML/JS/Node code, **not** the Windows
@@ -99,6 +100,17 @@ Manager entries yet.
 
 A cloud mirror plus a private archive bucket, with `push`/`pull`/`snapshot`/`verify` tooling.
 It is a **backup and reporting layer, not live sync** — the app still writes only locally.
+
+On a Windows PC with nothing installed — PowerShell only:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\sync-to-supabase.ps1 -SetKey   # once
+powershell -ExecutionPolicy Bypass -File tools\sync-to-supabase.ps1 -Verify   # compare, write nothing
+powershell -ExecutionPolicy Bypass -File tools\sync-to-supabase.ps1           # push
+powershell -ExecutionPolicy Bypass -File tools\install-sync-task.ps1          # run it daily, by itself
+```
+
+See [`supabase/SYNC-SETUP.md`](supabase/SYNC-SETUP.md). Or with Node installed:
 
 ```sh
 node tools/supabase-sync.mjs verify    # local vs cloud counts and revenue

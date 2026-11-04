@@ -1,0 +1,41 @@
+name: Test sync scripts
+
+# The PowerShell scripts can only be executed on Windows, so this runs them there:
+# against a mock REST server, with no Supabase credentials and no real data.
+
+on:
+  push:
+    paths:
+      - 'tools/**'
+      - '.github/workflows/test-sync-scripts.yml'
+  pull_request:
+    paths:
+      - 'tools/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show which PowerShell this is
+        shell: powershell
+        run: |
+          $PSVersionTable | Out-String | Write-Host
+          node --version
+
+      - name: Run the sync tests
+        shell: powershell
+        run: .\tools\test\run-sync-test.ps1
+
+      - name: Upload the mock server log if it failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-test-logs
+          path: |
+            ${{ runner.temp }}/apex-sync-test-*/mock.out.log
+            ${{ runner.temp }}/apex-sync-test-*/mock.err.log
+          if-no-files-found: ignore
+          retention-days: 3

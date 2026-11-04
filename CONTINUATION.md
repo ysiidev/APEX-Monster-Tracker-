@@ -49,6 +49,12 @@ Using jsdom and a mocked WebView message host, tests checked that the snapshot l
 4. Verify how starting balances and the October figures should be represented with the user. Consider clearer language for October cash vs. profit and add robust backup/import validation.
 5. For distribution, consider code signing, prerequisite detection/installation, automatic backup strategy, and an upgrade path before claiming production readiness.
 
+## Syncing to Supabase
+
+The desktop app is offline and has no network code. A separate PowerShell script copies its
+`data.json` to Supabase, on demand or on a schedule installed into Task Scheduler — see
+`supabase/SYNC-SETUP.md`. Nothing in the shipped app changes.
+
 ## Building the installers
 
 The installers are now built in CI: `.github/workflows/build-installers.yml` runs on a Windows
