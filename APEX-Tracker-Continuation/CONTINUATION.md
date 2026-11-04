@@ -49,6 +49,32 @@ node preview/server.js 9090     # custom port
 - `node preview/check.js` starts its own server on port 8099 and asserts the page loads without errors and that the Daily log matches the snapshot.
 - **The preview does not validate the Windows build.** It exercises the same HTML/JS, so a rendering or logic bug will show up here, but WebView2 startup, native dialogs, file permissions, installers and data persistence on Windows still require testing on Windows.
 
+## Supabase backend (cloud copy + archive)
+
+A Supabase project now holds a cloud mirror of the tracker, plus a private storage bucket for
+whole-file backups. It is a backup and reporting layer, **not a live sync** — the Windows app
+still writes only to its local `data.json`.
+
+- Project `apex-monster-tracker`, ref `qbhigtwejckzvocrwaqb`, region `ap-southeast-1`, org `ysiidev`.
+- Tables mirror the collections 1:1 (`sales`, `restocks`, `refmoves`, `money`, `oct_batches`,
+  `app_documents`, plus `snapshots` for whole-file archives). Only three column names change:
+  `paidMethod`→`paid_method`, `paidFrom`→`paid_from`, `to`→`to_account`, `order`→`ord`.
+- Seeded from the same 2026-11-04 snapshot: 10 sales (₱950), 14 restocks, 7 refmoves, 2 October
+  batches, 2 documents, 1 snapshot archive. Verified against the app: same per-day totals,
+  same stock-on-hand (73 cans) and the same Cash ₱855 / GCash ₱95 balances.
+- Reporting views: `v_daily_log`, `v_daily_totals`, `v_flavor_mix`, `v_monthly_summary`,
+  `v_stock_on_hand`, `v_account_balances`, `v_account_movements`, `v_sales_readable`.
+- **RLS is on for every table with zero policies.** The publishable key can read nothing; all
+  access needs the secret `service_role` key, which must stay in `supabase/.env` (git-ignored)
+  and never inside `app/` or git.
+- Schema is archived in `supabase/migrations/0001_init_tracker_schema.sql` (idempotent).
+  Sync tooling is `tools/supabase-sync.mjs` (`push`, `pull`, `snapshot`, `verify`, `--dry-run`,
+  `--prune`, `--force`); `tools/sync-selftest.mjs` round-trips a data file offline and must keep
+  passing. Full details, limits and the security model: `supabase/README.md`.
+- Caveat: the schema, seed and views were applied and queried through the Supabase API, but the
+  `push`/`pull`/`snapshot` HTTP paths could not be exercised from this sandbox (no route to
+  supabase.co). Their data mapping is covered by the offline self-test; the network calls are not.
+
 ## Data and business caveats
 
 The snapshot now holds ten November sales — nine Cash and one GCash, ₱950 total — after the amendment described below, plus estimated October sales. It does not include starting account balances; verify these and the inventory before using the accounting figures. October case quantities in the earlier notes conflict with the JSON: each batch lists 10 cases, not 20. October's ₱1,365 figure subtracts the full cost of purchased stock and shipping, and is not necessarily profit on cans sold. See the original continuation notes for all collection fields and rules.
