@@ -1,5 +1,5 @@
-<#
-    run-sync-test.ps1 — proves the PowerShell sync actually works, without touching Supabase.
+﻿<#
+    run-sync-test.ps1 - proves the PowerShell sync actually works, without touching Supabase.
 
     Checks, in order:
       1. both scripts parse (real PowerShell parser, not a guess)
@@ -39,8 +39,14 @@ foreach ($file in @($sync, (Join-Path $root 'tools\install-sync-task.ps1'))) {
     } else {
         Ok "$(Split-Path -Leaf $file) parses ($($tokens.Count) tokens)"
     }
+
+    # Windows PowerShell 5.1 decodes .ps1 files as ANSI unless a UTF-8 BOM is present,
+    # which silently turns any non-ASCII character into a broken string.
+    $bytes = [IO.File]::ReadAllBytes($file)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    Check $hasBom "$(Split-Path -Leaf $file) starts with a UTF-8 BOM (required by PowerShell 5.1)"
 }
-if ($failures -gt 0) { Write-Host 'Syntax errors — stopping before running anything.' -ForegroundColor Red; exit 1 }
+if ($failures -gt 0) { Write-Host 'Syntax errors - stopping before running anything.' -ForegroundColor Red; exit 1 }
 
 # ---------------------------------------------------------------- fixtures
 New-Item -ItemType Directory -Path $work -Force | Out-Null

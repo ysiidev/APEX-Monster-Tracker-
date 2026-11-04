@@ -1,5 +1,5 @@
-<#
-    sync-to-supabase.ps1 — copy this PC's tracker data to Supabase.
+﻿<#
+    sync-to-supabase.ps1 - copy this PC's tracker data to Supabase.
 
     Nothing needs installing: this uses PowerShell, which every Windows PC has.
     The desktop app is not modified and keeps working offline; this script only reads
@@ -76,7 +76,7 @@ function Set-StoredKey {
     $plain  = [Runtime.InteropServices.Marshal]::PtrToStringBSTR(
                   [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
 
-    if ([string]::IsNullOrWhiteSpace($plain)) { Write-Host 'Nothing entered — nothing saved.' -ForegroundColor Yellow; exit 1 }
+    if ([string]::IsNullOrWhiteSpace($plain)) { Write-Host 'Nothing entered - nothing saved.' -ForegroundColor Yellow; exit 1 }
     if ($plain -like 'sb_publishable_*' -or $plain -like 'anon*') {
         Write-Host 'That is the publishable (public) key. It cannot write: row level security blocks it.' -ForegroundColor Red
         Write-Host 'Use the secret / service_role key instead.' -ForegroundColor Red
@@ -223,7 +223,7 @@ function Invoke-Push($Data, $Rows) {
     foreach ($table in ($Collections + 'app_documents')) {
         $batch = @($Rows[$table])
         if ($batch.Count -eq 0) {
-            # an empty collection is fine — nothing to send, nothing to delete
+            # an empty collection is fine - nothing to send, nothing to delete
             $summary += "$table=0"
             continue
         }
@@ -266,7 +266,7 @@ function Get-CloudCount([string]$Table) {
     # app_documents has no id column: it is keyed by path
     $keyColumn = if ($Table -eq 'app_documents') { 'path' } else { 'id' }
     $result = Invoke-Supa 'GET' ('/rest/v1/' + $Table + '?select=' + $keyColumn) $null
-    # an empty table comes back as $null, and @($null).Count is 1 — guard it
+    # an empty table comes back as $null, and @($null).Count is 1 - guard it
     if ($null -eq $result) { return 0 }
     return @($result).Count
 }
@@ -303,7 +303,7 @@ function Invoke-Verify($Rows) {
 
     foreach ($l in $lines) { Write-Log $l }
     if ($ok) { Write-Log 'Local and cloud agree.' }
-    else     { Write-Log "Local and cloud disagree — run the script without -Verify to push this PC's data up." 'WARN' }
+    else     { Write-Log "Local and cloud disagree - run the script without -Verify to push this PC's data up." 'WARN' }
     return $ok
 }
 
@@ -322,7 +322,7 @@ try {
 }
 
 foreach ($c in $Collections) {
-    if ($null -eq $Data.$c) { Fail "The data file has no '$c' collection — it looks corrupt. Nothing was sent." }
+    if ($null -eq $Data.$c) { Fail "The data file has no '$c' collection - it looks corrupt. Nothing was sent." }
 }
 
 $Rows = Get-Rows $Data
@@ -339,7 +339,7 @@ if (Test-Path $StateFile) {
     try {
         $state = Get-Content -Path $StateFile -Raw | ConvertFrom-Json
         if ($state.hash -eq $hash) {
-            Write-Log 'Data unchanged since the last successful push — nothing to do.' 'INFO'
+            Write-Log 'Data unchanged since the last successful push - nothing to do.' 'INFO'
             exit 0
         }
     } catch { }

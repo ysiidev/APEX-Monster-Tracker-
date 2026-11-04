@@ -1,5 +1,5 @@
-<#
-    install-sync-task.ps1 — make the Supabase sync run by itself on this PC.
+﻿<#
+    install-sync-task.ps1 - make the Supabase sync run by itself on this PC.
 
     Installs a Windows Task Scheduler task that runs sync-to-supabase.ps1
     silently when you log on and once a day at 21:00.
@@ -44,7 +44,7 @@ if (-not (Test-Path $keyFile)) {
 }
 
 if ($Time -notmatch '^\d{1,2}:\d{2}$') {
-    Write-Host "Time must look like 21:00 — got '$Time'." -ForegroundColor Red
+    Write-Host "Time must look like 21:00 - got '$Time'." -ForegroundColor Red
     exit 1
 }
 
