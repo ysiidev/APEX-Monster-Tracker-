@@ -25,8 +25,21 @@ $failures = 0
 
 function Step($name) { Write-Host ''; Write-Host "== $name" -ForegroundColor Cyan }
 function Ok($msg)     { Write-Host "   PASS  $msg" -ForegroundColor Green }
-function Bad($msg)    { Write-Host "   FAIL  $msg" -ForegroundColor Red; $script:failures++ }
-function Check($cond, $msg) { if ($cond) { Ok $msg } else { Bad $msg } }
+function Bad($msg)    {
+    Write-Host "   FAIL  $msg" -ForegroundColor Red
+    $script:failures++
+    # Annotations survive even when the run log cannot be downloaded.
+    Write-Host ("::error title=check failed::{0}" -f ($msg -replace "`r?`n", ' '))
+}
+function Check($cond, $msg) {
+    if ($cond) { Ok $msg; return }
+    Bad $msg
+    if ($script:lastOut) {
+        $tail = ($script:lastOut -split "`n" | Select-Object -Last 12) -join ' | '
+        if ($tail.Length -gt 1400) { $tail = $tail.Substring($tail.Length - 1400) }
+        Write-Host ("::error title=output from that run::{0}" -f $tail)
+    }
+}
 
 # ---------------------------------------------------------------- 1. parse check
 Step 'Parsing the scripts'
@@ -78,7 +91,9 @@ $env:LOCALAPPDATA = $work          # keep the key file, log and state out of the
 function Invoke-Sync([string[]]$Extra) {
     $argv = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $sync, '-DataFile', $dataFile, '-SupabaseUrl', $base) + $Extra
     $out = & powershell @argv 2>&1
-    return [pscustomobject]@{ code = $LASTEXITCODE; out = ($out -join "`n") }
+    $text = $out -join "`n"
+    $script:lastOut = $text
+    return [pscustomobject]@{ code = $LASTEXITCODE; out = $text }
 }
 
 function Get-MockCount([string]$Table) {
